@@ -17,7 +17,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.common.config import PREDICTION_FILENAMES
+from src.common.config import (
+    PREDICTION_FILENAMES,
+    PREDICTION_PATHS,
+    SUBSYSTEMS,
+    TEST_PATHS,
+)
 from src.common.io import list_data_files, read_table
 
 from .schema import Schema, for_file
@@ -134,11 +139,64 @@ def validate(path: str | Path, inputs: str | Path | None = None) -> list[str]:
     return problems
 
 
+def validate_subsystem(subsystem: str) -> list[str] | None:
+    """Check one subsystem's prediction file, or None if it has not produced one.
+
+    A subsystem nobody has finished yet is not a failure. The three of us work in
+    separate packages, so a sweep has to tell "no file" apart from "bad file" and
+    keep going either way.
+    """
+    path = PREDICTION_PATHS[subsystem]
+    if not path.exists():
+        return None
+
+    inputs = TEST_PATHS[subsystem]
+    return validate(path, inputs if inputs.exists() else None)
+
+
+def validate_all() -> dict[str, list[str] | None]:
+    """Every subsystem, in order. None means nothing has been produced yet."""
+    return {subsystem: validate_subsystem(subsystem) for subsystem in SUBSYSTEMS}
+
+
+def _report_sweep() -> None:
+    results = validate_all()
+    failed = False
+    for subsystem, problems in results.items():
+        name = PREDICTION_FILENAMES[subsystem]
+        if problems is None:
+            print(f"{subsystem:<5} nothing found, skipping ({PREDICTION_PATHS[subsystem]})")
+        elif problems:
+            failed = True
+            print(f"{subsystem:<5} NOT SUBMITTABLE  {name}")
+            for problem in problems:
+                print(f"        - {problem}")
+        else:
+            print(f"{subsystem:<5} ok               {name}")
+
+    checked = [key for key, value in results.items() if value is not None]
+    if not checked:
+        print("\nNo prediction files yet. Run a subsystem's predict step first.")
+        return
+    if failed:
+        raise SystemExit("\nOne or more prediction files are not submittable.")
+    print(f"\n{len(checked)} of {len(results)} prediction files present, all submittable.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Check a prediction CSV against reference/submission_format/."
     )
-    parser.add_argument("csv", type=Path, help=f"One of: {', '.join(sorted(PREDICTION_FILENAMES.values()))}")
+    parser.add_argument(
+        "csv",
+        type=Path,
+        nargs="?",
+        default=None,
+        help=(
+            "One of: " + ", ".join(sorted(PREDICTION_FILENAMES.values()))
+            + ". Omit to check every prediction file in outputs/predictions/."
+        ),
+    )
     parser.add_argument(
         "--inputs",
         type=Path,
@@ -146,6 +204,10 @@ def main() -> None:
         help="Folder of test files the predictions were made from, to check file_id against.",
     )
     arguments = parser.parse_args()
+
+    if arguments.csv is None:
+        _report_sweep()
+        return
 
     try:
         problems = validate(arguments.csv, arguments.inputs)

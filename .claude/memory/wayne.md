@@ -57,6 +57,37 @@ would be wrong without. This applies to every file written for this project, by 
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-18 22:55 - scripts/validate.sh and .bat; validate with no argument sweeps everything
+
+**What.** `./scripts/validate.sh` (and `scripts\\validate.bat`) creates or refreshes `.venv` the
+same way `app.sh` does, then runs the validation. Two modes:
+
+    ./scripts/validate.sh                       every subsystem
+    ./scripts/validate.sh path/to/x.csv         that one file
+
+`python -m src.submission.validate` with no argument now sweeps all four subsystems. A subsystem
+that has not produced a prediction file prints "nothing found, skipping" and the sweep carries on.
+That is not a failure and does not affect the exit code, because we are working in separate
+packages and a sweep has to tell "no file" apart from "bad file".
+
+Today it reports: door, acv and rail nothing found; shm ok.
+
+Two things cross a boundary:
+
+1. **`validate_subsystem(subsystem)` returns `None` when no CSV exists**, and a list of problems
+   otherwise. `validate_all()` returns that per subsystem. Use these rather than re-deriving
+   paths; they come from `PREDICTION_PATHS` and `TEST_PATHS` in `common/config.py`, so door's
+   `Test.csv` is handled without anyone special casing it.
+2. **Exit code is 1 only when a file that exists fails.** Safe to put in CI or a pre-zip step now
+   and it will not go red just because your subsystem is unfinished.
+
+**Verified.** Sweep, single file, and both exit codes on macOS. `validate.bat` mirrors `app.bat`
+line for line but has not been run; neither of us has Windows here, so someone should try it
+before we rely on it.
+
+**Affects.** Jermaine, Jou: run `./scripts/validate.sh` any time. It will start reporting your
+subsystem the moment your `predict.py` writes its CSV, with no change to the script.
+
 ### 2026-09-18 22:40 - validate.py exists; FILE_ID_COLUMN moved into common/config.py
 
 **What.** `src/submission/` now has two files. `schema.py` reads a subsystem's columns off its
