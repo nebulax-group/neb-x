@@ -1,0 +1,19 @@
+# neb-x Project Memory — Index
+
+Durable facts about this hackathon entry. One file per topic. Last reconciled 2026-09-18.
+
+- [Problem Statement 3 — Train Condition Monitoring](problem-statment.md) — **start here.** The
+  four subsystems, their metrics, the three compulsory deliverables, the prediction schemas, and
+  how the Overall vs Average scores work.
+- [Project Structure and Code Conventions](project-structure.md) — the file tree and the twelve
+  rules any new file must follow. **Read before writing code.**
+
+## Sources of truth, in order
+
+When these disagree with each other or with memory, the higher one wins:
+
+1. `docs/<subsystem>/info_kit.md` — the authoritative definition of that subsystem's task, schema
+   and scoring formula. The summary tables in memory are convenience only.
+2. `docs/problem_statement.md` — deliverables, submission structure, overall rubric.
+3. `reference/submission_format/*.csv` — the prediction file schema, as shipped.
+4. `.claude/memory/` — our decisions and the reasoning behind them.

@@ -1,0 +1,44 @@
+# --- Virtual environments ---------------------------------------------------
+.venv/
+venv/
+env/
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# --- Raw datasets (6 GB, re-copyable from the organisers' repo) -------------
+# Everything under data/ is ignored except the note that says where it came from.
+data/**
+!data/
+!data/README.md
+
+# --- Generated artefacts ----------------------------------------------------
+# outputs/ is entirely generated: checkpoints, predictions, plots, logs, the
+# packaged submission. Keep the tree, ignore the contents.
+outputs/**
+!outputs/
+!outputs/*/
+!outputs/**/.gitkeep
+
+# --- Environment / secrets --------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- OS / editors -----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
