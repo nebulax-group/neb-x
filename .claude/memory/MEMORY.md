@@ -7,6 +7,7 @@ Durable facts about this hackathon entry. One file per topic. Last reconciled 20
   how the Overall vs Average scores work.
 - [Project Structure and Code Conventions](project-structure.md) — the file tree and the twelve
   rules any new file must follow. **Read before writing code.**
+- [How to Work With Me](prompting.md) — ask before touching files; plan in chat first.
 
 ## Sources of truth, in order
 
