@@ -11,6 +11,12 @@ Durable facts about this hackathon entry. One file per topic. Last reconciled 20
   keep the split from costing score. **Read before starting work.**
 - [How to Work With Me](prompting.md) — ask before touching files; plan in chat first.
 
+Per-person change logs. Append an entry when a change crosses a package boundary:
+
+- [Wayne](wayne.md) — what Wayne changed, newest first.
+- [Jermaine](jermaine.md) — what Jermaine changed, newest first.
+- [Jou](jou.md) — what Jou changed, newest first.
+
 ## Sources of truth, in order
 
 When these disagree with each other or with memory, the higher one wins:

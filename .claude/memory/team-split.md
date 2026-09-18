@@ -75,7 +75,6 @@ Everything after is improvement on a banked position.
 | Cut | Why |
 |---|---|
 | `interface.py`, `registry.py`, `splits.py` | [[project-structure]] rule 8 is a six-day luxury. A four-entry dict is fine here. |
-| Rainflow + Miner's rule for SHM | Stats features (RMS, percentiles, zero-crossings) + GBM against the 64 labels gets ~80% of the score for a third of the cost. **This cut is the only reason SHM is "easy".** |
 | Model benchmarking | One line in the write-up: default vs GBM. Ten minutes. |
 | Write-up | Optional (§4.2). One page at the end, only if time remains. |
 
@@ -85,8 +84,8 @@ Mutually exclusive by package — nobody edits the same file:
 
 | A | B | C |
 |---|---|---|
-| `src/rail/` | `common/metrics.py`, then `src/door/`, then `src/acv/` | app shell, then `src/shm/` |
-| ~15h | ~14.5h | ~13.5h |
+| `src/rail/` | `common/metrics.py`, then `src/door/`, then `src/acv/` | app shell, then `src/shm/`, then both upgrades below |
+| ~16h | ~16h | ~16h |
 
 **A is deliberately heaviest.** Rail is 5.6 GB and the only subsystem that cannot be rushed, but
 it is also the worst value per hour — ~14h to reach maybe 0.5–0.7 macro-F1, where Door reaches
@@ -96,8 +95,26 @@ it is also the worst value per hour — ~14h to reach maybe 0.5–0.7 macro-F1, 
 then joins A on rail model and CV while A keeps extraction and features. Different files, so no
 collision.
 
-**C's front-load shrank.** `config.py` and `io.py` were the bulk of it, so C reaches SHM sooner.
-Spend the slack on the app shell being decent rather than minimal.
+**C's two upgrades.** `config.py` and `io.py` were already done and `src/submission/` is shared
+end-work, so C's column is otherwise light. Fill it with the two things this plan was
+under-weighting — both *upgrades on a banked baseline*, so if C runs out of time the submission is
+unaffected:
+
+1. **SHM properly, via rainflow (+3h).** Bank the cheap version first — stats features (RMS,
+   percentiles, zero-crossings) + GBM against the 64 labels. Then implement rainflow counting +
+   Miner's rule and fit `(m, C)`. The info kit §1.3 says that is exactly how the reference values
+   were produced, so it is the one subsystem where the ground truth can be reverse-engineered
+   rather than approximated. MAPE is unforgiving on the 0.028-damage files and a physics-based
+   estimate should beat a 64-sample regression.
+2. **The app beyond minimal (+2.5h).** Per-subsystem explainability — which band drove a rail
+   call, which car's temperature diverged, where in the stream a door fault sits — plus a clean
+   download flow and something that films well.
+
+The second matters more than the hour count suggests. Of the three grading criteria in §6, **Ease
+of Use maps entirely to the app**, and Problem Fit separately lists "explainability, UI, code
+quality". The app carries a full third of the grade outright and contributes to a second third;
+rail carries a quarter of *one* criterion. A three-hour shell next to fourteen hours of rail has
+the weighting backwards.
 
 ## Converge at the end — everyone
 
