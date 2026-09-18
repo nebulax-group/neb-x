@@ -609,15 +609,34 @@ cheapest first:
 3. **Envelope spectrum** — standard practice for modulated rolling-contact faults.
 4. **Top-k boxes rather than the max alone** — max works, so the k next-largest may carry more.
 
+#### Step 0, before touching `features.py` — capture the baseline's fold scores
+
+**Do this first or the paired test is impossible.** A paired comparison needs both feature sets
+scored on the same 50 folds, but only `mean` and `spread` reach the checkpoint — the fold array
+lives for the length of one run. Editing `features.py` and re-extracting overwrites the cache, and
+recovering the baseline then costs a revert plus a full 400 s cycle.
+
+```python
+import numpy as np
+from src.rail import train
+
+training = train.training_set()                  # no refresh: features.py is untouched
+baseline = train.cross_validate(training.matrix, training.labels)
+np.save(train.FEATURE_CACHE_PATH.with_name("baseline_folds.npy"), baseline.fold_scores)
+```
+
+~260 s off the existing cache. `outputs/` is gitignored, so this is a local scratch artefact and
+needs no log entry. Re-capture it whenever the shipped baseline changes.
+
 #### How to run a candidate
 
-Everything needed exists; do not rebuild any of it.
+Everything else needed exists; do not rebuild any of it.
 
 ```python
 from src.rail import train
 training = train.training_set(refresh=True)      # refresh: features.py changed
 result = train.cross_validate(training.matrix, training.labels)
-result.fold_scores        # (50,) -- difference THESE against the baseline's, per fold
+result.fold_scores        # (50,) -- difference THESE against the saved baseline, per fold
 result.macro_f1, result.pooled_macro_f1, result.class_f1.mean(axis=0)
 ```
 
