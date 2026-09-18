@@ -62,9 +62,12 @@ only cars 01–04 populated, and it carries refrigeration pressures the test fil
 mapped columns its true car ranks 2nd of 4. It is a different problem wearing the same name;
 tuning against it teaches the wrong lesson. Keep it for the write-up.
 
-**Decision — add cooling duty cycle as an independent confirming signal**, not as a vote to
-average. A leaking car should run cooling a larger fraction of the time to hold the same setpoint.
-Agreement on car 01 is evidence; disagreement is a flag to investigate.
+**Cooling duty cycle was added as an independent confirming signal, then DISPROVEN by measurement.**
+It spans only 0.001–0.04 across the eight cars in every one of the six case files, so it does not
+discriminate; rank agreement with the temperature signal was false for the top car in all six,
+including the five with known-correct answers. It is still reported for transparency, but no verdict
+comes from it. ACV rests on the temperature signal alone — justified by a 200-resample block
+bootstrap that puts car 01 first 200/200 times. See [[overfitting-audit]].
 
 **Decision — no `model.py` or `train.py` in `src/acv/`.** A deliberate deviation from
 [[project-structure]] rule 4: with five usable cases there is nothing to fit that would not be
@@ -83,7 +86,16 @@ deviation where a reader hits it.
 
 ## State as of 2026-09-18
 
-Design approved in chat; spec and implementation plan not yet written. Nothing under `src/door/`
-or `src/acv/` exists. Converted CSVs and the bench-notes page are in `outputs/explore/`.
+**Both subsystems are implemented and both submission files exist**, built test-first from
+`docs/superpowers/plans/2026-09-18-door-acv.md` on branch `Jou`.
 
-See also: [[team-split]], [[problem-statment]], [[project-structure]], [[bench-notes-artifact]].
+- `outputs/predictions/door_predictions.csv` — 38 rows, 30 Normal / 8 Abnormal resistance
+- `outputs/predictions/acv_predictions.csv` — `acv_test_case.xlsx,01|03|07|04|08|06|02|05`
+- Door CV accuracy 1.0000 ± 0.0000; shift-stress 0/110 at every factor 0.85–1.20
+- 47 tests green
+
+Still outstanding: the two app views in `src/app/ui/`, running both subsystems **through the app**
+to regenerate the CSVs (the team's definition of done), and `src/submission/package.py`.
+
+See also: [[team-split]], [[problem-statment]], [[project-structure]], [[bench-notes-artifact]],
+[[overfitting-audit]].

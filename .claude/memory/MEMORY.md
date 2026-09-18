@@ -12,6 +12,8 @@ Durable facts about this hackathon entry. One file per topic. Last reconciled 20
 - [How to Work With Me](prompting.md) — ask before touching files; plan in chat first.
 - [Jou Yuan — Door and ACV](jouyuan.md) — what Jou Yuan owns, the measured data facts behind both
   subsystems, and the design decisions already taken. **Door is scored on accuracy, not macro-F1.**
+- [Overfitting Audit](overfitting-audit.md) — what was measured to rule out overfitting on Door and
+  ACV, and the two limits the checks do not cover. **Quote these in the write-up.**
 - [Door & ACV Bench Notes](bench-notes-artifact.md) — published figures page, plus the CSV copies
   of every ACV workbook under `outputs/explore/`.
 

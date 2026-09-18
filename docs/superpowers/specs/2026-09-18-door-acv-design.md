@@ -80,9 +80,14 @@ strings echoed, never reformatted — the native format is not zero-padded.
    `Outside Temperature Sensor Reading` where others say `Outdoor Average Temperature`.
 2. **Primary signal.** `mean(Indoor Average Temperature − ACV Control Temperature (Cooling))` per
    car. A healthy car sits at or below its target; a leaking car runs above its own target.
-3. **Confirming signal.** Cooling duty cycle — the fraction of rows in a cooling running mode. A
-   leaking car should run cooling longer to hold the same setpoint. **Reported alongside, not
-   averaged in.** Agreement is evidence; disagreement is a flag, not a vote.
+3. **Confirming signal — tested and disproven.** Cooling duty cycle (the fraction of rows in a
+   cooling running mode) was included on the theory that a leaking car must run longer to hold the
+   same setpoint. **Measured across all six case files, it does not discriminate:** duty cycle spans
+   only 0.001–0.04 between the eight cars in every file (held-out: 0.8648–0.8672), and exact rank
+   agreement with the temperature signal was false for the top-ranked car in all six — including the
+   five where that car is the known-correct answer. It is reported for transparency, and no verdict
+   is computed from it. ACV therefore rests on the temperature signal alone; see
+   [[overfitting-audit]] for the bootstrap that justifies confidence in it.
 4. **Rank** all cars present, descending by the primary signal, joined with `|`.
 
 **No `model.py` or `train.py` in `src/acv/`** — a deliberate deviation from `project-structure.md`
@@ -122,7 +127,7 @@ tested against.
 |---|---|
 | Test stream mixes more than one door, so one per-file median is the wrong baseline | Segment counts and baselines are logged at predict time; the app displays the ratio distribution so a bimodal baseline is visible |
 | Test abnormal rate differs from 27% | The rule is a per-cycle decision, not a quota — nothing assumes a count |
-| ACV car 01 is wrong | Rank 2–8 order still earns 0.875 down to 0.125; the duty-cycle signal is reported so a disagreement is visible before submission |
+| ACV car 01 is wrong | Rank 2–8 order still earns 0.875 down to 0.125. A 200-resample block bootstrap puts car 01 first 200/200 times, so this risk is smaller than the thin 0.166 margin suggests |
 | Timestamps or car ids reformatted | Asserted by test: output strings must be byte-identical to source |
 
 ## Expected outcome
