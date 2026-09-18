@@ -11,6 +11,15 @@ Durable facts about this hackathon entry. One file per topic. Last reconciled 20
   keep the split from costing score. **Read before starting work.**
 - [How to Work With Me](prompting.md) — ask before touching files; plan in chat first.
 
+Per-subsystem build plans. The phases, what the data actually says, and what has already been
+ruled out — **read the one for your subsystem before writing any of its code:**
+
+- [Rail Corrugation Build Plan](rail-plan.md) — ten phases for `src/rail/`, all measured against
+  the data. Phases 0–6 done; **Phase 8 next, and the order changed to 8 → 9 → 7** because nothing
+  is banked above 0.33 until a checkpoint exists. 0.758 macro F1 at 10×5, the estimator choice is a
+  measured tie, and both the per-side binary framing and smaller `min_samples_leaf` are refuted —
+  do not rebuild either.
+
 Per-person change logs. Append an entry when a change crosses a package boundary:
 
 - [Wayne](wayne.md) — what Wayne changed, newest first.
