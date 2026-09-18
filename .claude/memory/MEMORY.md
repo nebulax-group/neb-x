@@ -10,6 +10,10 @@ Durable facts about this hackathon entry. One file per topic. Last reconciled 20
 - [Three-Person Work Split](team-split.md) — who owns which subsystem, the five checks that
   keep the split from costing score. **Read before starting work.**
 - [How to Work With Me](prompting.md) — ask before touching files; plan in chat first.
+- [Jou Yuan — Door and ACV](jouyuan.md) — what Jou Yuan owns, the measured data facts behind both
+  subsystems, and the design decisions already taken. **Door is scored on accuracy, not macro-F1.**
+- [Door & ACV Bench Notes](bench-notes-artifact.md) — published figures page, plus the CSV copies
+  of every ACV workbook under `outputs/explore/`.
 
 ## Sources of truth, in order
 

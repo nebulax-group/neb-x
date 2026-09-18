@@ -63,11 +63,11 @@ schema, correct `file_id` spelling:
 | Subsystem | Dummy submission | Expected |
 |---|---|---|
 | ACV | `01\|02\|03\|04\|05\|06\|07\|08` | ~0.56 — random ranking averages `(n−(r−1))/n` = 0.5625 |
-| Door | gap-split segments, all `Normal` | ~0.4 — segmentation is exact, so only the 30/110 abnormals are lost |
+| Door | gap-split segments, all `Normal` | **~0.73** — segmentation is exact and the metric is accuracy, so the floor is the Normal share |
 | Rail | constant `Normal` | 0.33 — macro-F1 of (1.0 + 0 + 0)/3 |
 | SHM | constant `0.23` (the training mean) | ~0 — MAPE floors it |
 
-≈ **0.32 Overall for about 90 minutes of work**, and it makes a technicality-zero impossible.
+≈ **0.40 Overall for about 90 minutes of work**, and it makes a technicality-zero impossible.
 Everything after is improvement on a banked position.
 
 ## What gets cut
@@ -90,7 +90,7 @@ Mutually exclusive by package — nobody edits the same file:
 
 **A is deliberately heaviest.** Rail is 5.6 GB and the only subsystem that cannot be rushed, but
 it is also the worst value per hour — ~14h to reach maybe 0.5–0.7 macro-F1, where Door reaches
-~0.85 in five.
+~0.95 in five.
 
 **Reinforcement:** B finishes both subsystems first — Door and ACV are genuinely fast now — and
 then joins A on rail model and CV while A keeps extraction and features. Different files, so no
@@ -142,7 +142,7 @@ sampled *during* cycles, so boundaries are timestamp gaps:
 
 `Train_Segments_Answer.csv` has exactly 110 rows, so a gap split is exact. Largest within-cycle
 delta is 20 ms; smallest gap is 10.2 s — a 500× margin. IoU is therefore 1.0 and the IoU-weighted
-F1 collapses to plain F1 on the labels. Door is a **110-sample binary classification**, 80 Normal
+F1 collapses to plain **accuracy** on the labels — see [[jouyuan]] for the derivation. Door is a **110-sample binary classification**, 80 Normal
 / 30 Abnormal resistance. `door_predictions.csv` will have 38 rows.
 
 **Rail** — 272 train files, labels 234 Normal / 24 Side II / **14 Side I**; 68 test files. Each
