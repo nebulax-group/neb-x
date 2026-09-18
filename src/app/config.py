@@ -5,21 +5,12 @@ nothing here restates either. Nothing in ``src/app/`` should hold a literal that
 change — copy, colour and page identity all resolve to a name defined in this file.
 """
 
-from src.common.config import SUBSYSTEMS
+from src.common.config import SUBSYSTEM_LABELS, SUBSYSTEMS
 
 PAGE_TITLE = "Train Condition Monitoring"
 PAGE_LAYOUT = "centered"
 EYEBROW = "depot diagnostics"
 STANDFIRST = "Add a system's sensor files. Read its condition, then download the result."
-
-# The organisers' own folder names, so a judge reads the same word in the app, in the
-# info kits and in the prediction filenames.
-SUBSYSTEM_LABELS = {
-    "door": "Door",
-    "acv": "ACV",
-    "rail": "Rail Corrugation",
-    "shm": "SHM",
-}
 
 # What each system listens to, in the words of someone who maintains trains rather
 # than someone who wrote the model. Presentation only: a fifth subsystem adds a line

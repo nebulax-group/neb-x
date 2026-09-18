@@ -57,6 +57,57 @@ would be wrong without. This applies to every file written for this project, by 
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-18 23:20 - package.py, submit.sh, and what every script does
+
+**What.** The submission now builds itself. `./submit.sh` validates then packages, and is the
+one command to run before sending anything.
+
+### Every script in the repo, and what it does
+
+| Command | What it does |
+|---|---|
+| `./install.sh` / `.bat` | Creates `.venv` and installs `requirements.txt`. Called by the others when `.venv` is absent. |
+| `./scripts/check.sh` / `.bat` | Runs `scripts/check_env.py`, which reports whether the environment and datasets are in place. |
+| `./scripts/app.sh` / `.bat` | Starts the Streamlit app. This is the compulsory deliverable and how the submitted predictions must be produced. |
+| `./scripts/validate.sh` / `.bat` | Checks prediction CSVs against `reference/submission_format/`. No argument sweeps all four subsystems and skips the ones nobody has produced; a path checks that one file. Exit 1 only when a file that exists fails. |
+| `./scripts/package.sh` / `.bat` | Builds `outputs/submission/<team>/`. Takes `--team "Your Name"`. |
+| `./submit.sh` / `.bat` | Runs validate then package, stopping at the first failure. Passes `--team` through. |
+
+Every script is a thin wrapper: it creates or refreshes `.venv`, then hands off to a module. The
+layout, the paths and the checks all live in Python, so a change of structure never means editing
+six shell scripts.
+
+### What package.py builds
+
+    <team>/
+    |-- predictions.zip        flat, only the CSVs of subsystems that validated
+    |-- app/                   src, scripts, .streamlit, requirements.txt, install and submit
+    `-- Optional_Items/
+        `-- <Subsystem>/{code,model}/
+
+Currently 264 KB, one subsystem, `predictions.zip` containing exactly
+`['shm_predictions.csv']`. `data/` and `outputs/` are excluded; section 4.1 says not to send the
+datasets back.
+
+Three things cross a boundary:
+
+1. **A CSV that fails validation stops the build.** Packaging refuses rather than zipping a bad
+   file, because the organisers score the zip as-is and nothing downstream would notice.
+2. **`Optional_Items/<Subsystem>/model/` is now filled automatically** from `MODEL_DIRS`. That
+   closes the checkpoint problem open since the 19:51 entry: `outputs/` is gitignored and never
+   reaches the machine that records the demo, but this folder travels with the submission.
+3. **Two constants moved into `src/common/config.py`:** `SUBSYSTEM_LABELS`, which was in
+   `src/app/config.py` and is now imported from common, and a new `DEFAULT_TEAM_NAME`. The
+   submission layer needs the organisers' folder names and nothing may import the app.
+
+**Still needed by hand:** `demo_video.mp4`, and renaming the folder to the registered team name.
+Both are printed at the end of every run, and `--team` sets the name directly.
+
+**Affects.** Jermaine, Jou: your subsystem joins the zip automatically once `predict.py` writes a
+valid CSV, and your `src/<sub>/` and any checkpoint in `outputs/models/<sub>/` are copied into
+`Optional_Items/` with no action from you. Point 3 changes an import if you referenced
+`SUBSYSTEM_LABELS` from the app config.
+
 ### 2026-09-18 22:55 - scripts/validate.sh and .bat; validate with no argument sweeps everything
 
 **What.** `./scripts/validate.sh` (and `scripts\\validate.bat`) creates or refreshes `.venv` the

@@ -9,6 +9,20 @@ from pathlib import Path
 RANDOM_SEED = 42
 
 SUBSYSTEMS = ("door", "acv", "rail", "shm")
+
+# The organisers' own names for the four subsystems. Used for the folders under
+# Optional_Items/, which the problem statement spells out, and by the app so a judge
+# reads the same word on screen, in the info kits and in the submission folder.
+SUBSYSTEM_LABELS = {
+    "door": "Door",
+    "acv": "ACV",
+    "rail": "Rail Corrugation",
+    "shm": "SHM",
+}
+
+# Overridden with --team. The folder must carry the team name exactly as registered,
+# and nobody has recorded it yet, so this is a placeholder that says so when used.
+DEFAULT_TEAM_NAME = "neb-x"
 CSV_EXTENSION = ".csv"
 XLSX_EXTENSION = ".xlsx"
 SUPPORTED_DATA_EXTENSIONS = (CSV_EXTENSION, XLSX_EXTENSION)
