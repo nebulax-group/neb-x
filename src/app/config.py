@@ -9,11 +9,8 @@ from src.common.config import SUBSYSTEMS
 
 PAGE_TITLE = "Train Condition Monitoring"
 PAGE_LAYOUT = "centered"
-EYEBROW = "neb-x fleet diagnostics"
-STANDFIRST = (
-    "Choose the system you want checked, add the sensor files recorded from it, "
-    "and the assessment appears below ready to download."
-)
+EYEBROW = "depot diagnostics"
+STANDFIRST = "Add a system's sensor files. Read its condition, then download the result."
 
 # The organisers' own folder names, so a judge reads the same word in the app, in the
 # info kits and in the prediction filenames.
@@ -24,28 +21,41 @@ SUBSYSTEM_LABELS = {
     "shm": "SHM",
 }
 
-if set(SUBSYSTEM_LABELS) != set(SUBSYSTEMS):
-    raise RuntimeError(
-        f"SUBSYSTEM_LABELS covers {sorted(SUBSYSTEM_LABELS)}, expected {sorted(SUBSYSTEMS)}. "
-        "The app offers exactly these keys, so a missing one disappears from the UI silently."
-    )
+# What each system listens to, in the words of someone who maintains trains rather
+# than someone who wrote the model. Presentation only: a fifth subsystem adds a line
+# here, never a branch anywhere else.
+SUBSYSTEM_BLURBS = {
+    "door": "Motor current through every open and close cycle",
+    "acv": "Cabin and ambient temperature across the cars",
+    "rail": "Axle-box vibration and shock along the track",
+    "shm": "Dynamic stress on the car body structure",
+}
 
-SUBSYSTEM_PROMPT = "Which system are you checking?"
-UPLOAD_PROMPT = "Upload your {label} data files"
-UPLOAD_HELP = (
-    "Drag the files here or browse for them. You can add several at once. "
-    "Accepted formats: {formats}."
-)
-SPINNER_MESSAGE = "Reading your files and running the {label} model..."
-DOWNLOAD_LABEL = "Download predictions (CSV)"
-UNAVAILABLE_MESSAGE = (
-    "{label} results are not available yet — there is no trained model for it. "
-    "Choose another system above to run one now."
-)
-ERROR_HINT = (
-    "Check that the files you uploaded are the ones for the system selected above, "
-    "then try again."
-)
+for _name, _mapping in (("SUBSYSTEM_LABELS", SUBSYSTEM_LABELS), ("SUBSYSTEM_BLURBS", SUBSYSTEM_BLURBS)):
+    if set(_mapping) != set(SUBSYSTEMS):
+        raise RuntimeError(
+            f"{_name} covers {sorted(_mapping)}, expected {sorted(SUBSYSTEMS)}. "
+            "The app offers exactly these keys, so a missing one disappears from the UI silently."
+        )
+
+READY_CHIP = "{ready} of {total} systems ready"
+
+BOARD_HEADING = "Choose a system to check"
+BOARD_STANDFIRST = "Pick the system your recordings came from."
+BOARD_READY = "Model ready"
+BOARD_IDLE = "No model yet"
+BOARD_WAITING = "Pick a system to continue."
+BOARD_SELECT = "Select"
+BOARD_SELECTED = "Selected"
+
+UPLOAD_PROMPT = "{label} recordings"
+UPLOAD_HELP = "Several files at once is fine. Accepted: {formats}."
+UPLOAD_WAITING = "Add at least one file to run {label}."
+SPINNER_MESSAGE = "Running the {label} model..."
+DOWNLOAD_LABEL = "Download predictions"
+UNAVAILABLE_MESSAGE = "{label} has no trained model yet. Pick another system."
+ERROR_HINT = "Check the files match the system selected, then try again."
+RESULTS_HEADING = "Assessment"
 READOUT_CAPTIONS = {
     "system_caption": "System",
     "rows_caption": "Rows returned",
@@ -53,72 +63,76 @@ READOUT_CAPTIONS = {
 }
 
 UPLOAD_DIR_PREFIX = "neb-x-uploads-"
+SELECTED_STATE_KEY = "nx_selected_subsystem"
+PANEL_STATE_KEY = "nx_panel_index"
 
-# Warm paper rather than the cool blue-grey of a stock theme, and the oxide orange of
-# weathered rail for the accent. Every foreground/background pair clears WCAG AA at 4.5:1;
-# re-check with that threshold before changing any value here.
+STEP_COUNTER = "Step {current} of {total}"
+STEP_BACK = "Back"
+STEP_NEXT = "Next"
+STEP_NUMBER = "{number:02d}"
+
+# A depot condition desk seen at night: deep petrol rather than neutral black, so the
+# ground reads as an instrument surface and not as a dark-mode switch. The accent is
+# instrument cyan, and green/amber/red are kept back for signal aspects — they carry
+# meaning a subsystem supplies, never a severity the app invented.
+# Every foreground/background pair clears WCAG AA at 4.5:1; re-check with that
+# threshold before changing any value here.
 PALETTE = {
-    "ink": "#14171A",
-    "ink-muted": "#55595C",
-    "paper": "#F3F1EC",
-    "surface": "#FCFBF8",
-    "rule": "#D6D1C7",
-    "rule-strong": "#B9B2A4",
-    "grid-header": "#EAE6DE",
-    "oxide": "#A8481C",
-    "oxide-deep": "#8A3A16",
-    "oxide-wash": "#F4E7DF",
-    "green": "#2E6A4A",
-    "red": "#9E2B20",
-    "amber": "#8A6208",
-    "info": "#2F5560",
-    "info-wash": "#E7ECEC",
-    "info-ink": "#22414A",
+    "abyss": "#0A1319",
+    "deck": "#101F27",
+    "deck-high": "#172B35",
+    "hairline": "#213A46",
+    "hairline-strong": "#2E4E5C",
+    "chalk": "#E9F1F4",
+    "chalk-dim": "#93A9B4",
+    "instrument": "#5BC8DE",
+    "instrument-deep": "#2E97AE",
+    "instrument-wash": "#123039",
+    "clear": "#43B888",
+    "caution": "#E3A93F",
+    "danger": "#E4584C",
 }
 
-SANS_STACK = "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif"
+SANS_STACK = "'Archivo', 'Helvetica Neue', system-ui, sans-serif"
 MONO_STACK = "'IBM Plex Mono', 'SF Mono', Menlo, monospace"
 FONT_IMPORT_URL = (
     "https://fonts.googleapis.com/css2?"
-    "family=IBM+Plex+Mono:wght@400;500;600&"
-    "family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    "family=Archivo:wght@400;500;600;700&"
+    "family=IBM+Plex+Mono:wght@400;500;600&display=swap"
 )
 
 # Streamlit paints its own widgets from .streamlit/config.toml, which is TOML and cannot
 # import this file. This mapping is what lets the app verify the two agree at startup
 # instead of drifting into a stylesheet and a widget theme that disagree on screen.
 THEME_CONFIG_COLOURS = {
-    "primaryColor": "oxide",
-    "backgroundColor": "paper",
-    "secondaryBackgroundColor": "surface",
-    "textColor": "ink",
-    "linkColor": "oxide-deep",
-    "borderColor": "rule",
-    "dataframeBorderColor": "rule",
-    "dataframeHeaderBackgroundColor": "grid-header",
-    "greenColor": "green",
-    "redColor": "red",
-    "orangeColor": "amber",
-    "blueColor": "info",
-    "blueBackgroundColor": "info-wash",
-    "blueTextColor": "info-ink",
+    "primaryColor": "instrument",
+    "backgroundColor": "abyss",
+    "secondaryBackgroundColor": "deck",
+    "textColor": "chalk",
+    "linkColor": "instrument",
+    "borderColor": "hairline",
+    "dataframeBorderColor": "hairline",
+    "dataframeHeaderBackgroundColor": "deck-high",
+    "greenColor": "clear",
+    "redColor": "danger",
+    "orangeColor": "caution",
+    "blueColor": "instrument",
+    "blueBackgroundColor": "instrument-wash",
+    "blueTextColor": "chalk",
 }
 
 EXPLAIN_HEADING = "How this reading was reached"
-EXPLAIN_STANDFIRST = (
-    "The same numbers as above, shown as the model saw them, so the result can be "
-    "checked rather than taken on trust."
-)
-EXPLAIN_FAILED = (
-    "The prediction above is complete and ready to download; only this explanation "
-    "could not be drawn ({reason})."
-)
+EXPLAIN_STANDFIRST = "The model's own workings, one step at a time."
+EXPLAIN_FAILED = "Results are ready to download. The explanation could not be drawn ({reason})."
 
 # Rows are sized rather than the chart, so a one-file and a sixteen-file batch keep
 # identical bar thickness instead of stretching to fill a fixed height.
 CHART_ROW_HEIGHT = 30
 CHART_ROW_PADDING = 0.25
 CHART_PADDING = 24
+# The rotated y-axis title sits outside the plotting area, and at phone width the
+# default padding is not enough to hold it and the tick labels; it clips at the edge.
+CHART_PADDING_LEFT = 46
 # Streamlit sets autosize.contains="padding", so a chart's declared height is the whole
 # SVG: padding and the x-axis come out of it. Heights below are the plotting area wanted,
 # and this is the room the axis labels plus title need on top of it.

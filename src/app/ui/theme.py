@@ -25,7 +25,8 @@ _TOKENS = ":root{" + "".join(f"--nx-{name}:{value};" for name, value in PALETTE.
 _STYLESHEET = """
 html, body, .stApp, [data-testid="stAppViewContainer"] {
     font-family: %(sans)s;
-    color: var(--nx-ink);
+    background: var(--nx-abyss);
+    color: var(--nx-chalk);
 }
 
 [data-testid="stHeader"] { background: transparent; }
@@ -35,169 +36,377 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none; }
 
 .block-container {
-    max-width: 1080px;
-    padding-top: 2.75rem;
-    padding-bottom: 4rem;
+    max-width: 1120px;
+    padding-top: 2.25rem;
+    padding-bottom: 5rem;
+}
+
+:focus-visible {
+    outline: 2px solid var(--nx-instrument);
+    outline-offset: 2px;
 }
 
 /* Widget labels read as instrument legends rather than sentences, which keeps
    the eye on the values instead of the chrome. */
 [data-testid="stWidgetLabel"] p {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.09em;
+    font-family: %(mono)s;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
-    color: var(--nx-ink-muted);
+    color: var(--nx-chalk-dim);
 }
 
-[data-testid="stFileUploaderDropzone"] {
-    background: var(--nx-surface);
-    border: 1px dashed var(--nx-rule-strong);
+/* ── Masthead ─────────────────────────────────────────────────────────── */
+
+.nx-rail {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--nx-hairline);
+}
+
+.nx-mark { flex: none; display: block; }
+
+.nx-wordmark {
+    font-family: %(mono)s;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--nx-chalk);
+}
+
+.nx-eyebrow {
+    font-family: %(mono)s;
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--nx-chalk-dim);
+}
+
+.nx-eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 1px;
+    height: 0.8rem;
+    margin-right: 0.7rem;
+    vertical-align: -0.1rem;
+    background: var(--nx-hairline-strong);
+}
+
+.nx-chip {
+    margin-left: auto;
+    padding: 0.2rem 0.55rem;
+    font-family: %(mono)s;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--nx-instrument);
+    background: var(--nx-instrument-wash);
+    border: 1px solid var(--nx-hairline-strong);
     border-radius: 2px;
 }
 
-[data-testid="stFileUploaderDropzone"]:hover { border-color: var(--nx-oxide); }
+.stApp h1.nx-title {
+    margin: 1.6rem 0 0;
+    padding: 0;
+    font-size: clamp(1.9rem, 1.15rem + 2.1vw, 2.85rem);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+    color: var(--nx-chalk);
+}
 
-/* The results grid is painted to a canvas, so it takes its face from the `font`
-   key in .streamlit/config.toml — CSS cannot reach inside it. */
+.stApp p.nx-standfirst {
+    margin: 0.85rem 0 0;
+    max-width: 58ch;
+    font-size: 1.02rem;
+    color: var(--nx-chalk-dim);
+    line-height: 1.55;
+}
+
+/* ── Section heads ────────────────────────────────────────────────────── */
+
+.nx-section {
+    margin: 2.9rem 0 1.15rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--nx-hairline);
+}
+
+.stApp h2.nx-section-title {
+    margin: 0;
+    padding: 0;
+    font-family: %(mono)s;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--nx-instrument);
+}
+
+.stApp p.nx-section-standfirst {
+    margin: 0.5rem 0 0;
+    max-width: 64ch;
+    font-size: 0.92rem;
+    color: var(--nx-chalk-dim);
+    line-height: 1.55;
+}
+
+/* ── The board ────────────────────────────────────────────────────────── */
+
+/* Each card is a st.container(key="nx-card-<sub>"), so the markup above the button
+   and the button itself sit inside one element that can be given a border. */
+[class*="st-key-nx-card-"] {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    height: 100%%;
+    min-height: 186px;
+    padding: 0.95rem 1rem 0.9rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-radius: 3px;
+    transition: border-color 160ms ease-out, background-color 160ms ease-out;
+}
+
+[class*="st-key-nx-card-"]:hover { border-color: var(--nx-hairline-strong); }
+
+[class*="st-key-nx-card-"]:has(.nx-on) {
+    background: var(--nx-deck-high);
+    border-color: var(--nx-instrument);
+}
+
+/* Only the button is pushed to the foot of the card. Matching the last child instead
+   would bottom-align the text on a card that has no button, which the dormant ones
+   do not. */
+[class*="st-key-nx-card-"] [data-testid="stElementContainer"]:has(.stButton) {
+    margin-top: auto;
+    padding-top: 0.9rem;
+}
+
+.nx-lamp-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.nx-lamp {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%%;
+    background: var(--nx-hairline-strong);
+}
+
+/* The glow is what makes a lit lamp read as lit rather than as a coloured dot; it is
+   the one piece of decoration on the page and it encodes real state. */
+.nx-lamp.nx-lit {
+    background: var(--nx-clear);
+    box-shadow: 0 0 0 3px rgba(67, 184, 136, 0.16);
+}
+
+.nx-on .nx-lamp.nx-lit {
+    background: var(--nx-instrument);
+    box-shadow: 0 0 0 3px rgba(91, 200, 222, 0.2);
+}
+
+.nx-lamp-text {
+    font-family: %(mono)s;
+    font-size: 0.64rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--nx-chalk-dim);
+}
+
+.nx-card-name {
+    margin: 0.85rem 0 0;
+    font-size: 1.12rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    color: var(--nx-chalk);
+}
+
+.nx-card-blurb {
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--nx-chalk-dim);
+}
+
+.nx-off .nx-card-name, .nx-off .nx-card-blurb { opacity: 0.55; }
+
+[class*="st-key-nx-card-"] .stButton button {
+    width: 100%%;
+    font-family: %(mono)s;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
 
 .stDownloadButton button, .stButton button {
     font-weight: 600;
     letter-spacing: 0.02em;
     border-radius: 2px;
-    transition: background-color 180ms ease-out, border-color 180ms ease-out;
+    transition: background-color 160ms ease-out, border-color 160ms ease-out,
+                color 160ms ease-out;
 }
 
-.nx-masthead {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding-bottom: 0.9rem;
-    border-bottom: 2px solid var(--nx-ink);
+.stDownloadButton button { padding-left: 1.4rem; padding-right: 1.4rem; }
+
+/* ── Uploader ─────────────────────────────────────────────────────────── */
+
+[data-testid="stFileUploaderDropzone"] {
+    background: var(--nx-deck);
+    border: 1px dashed var(--nx-hairline-strong);
+    border-radius: 3px;
 }
 
-.nx-mark { flex: none; }
+[data-testid="stFileUploaderDropzone"]:hover { border-color: var(--nx-instrument); }
 
-.nx-masthead-text { display: flex; flex-direction: column; gap: 0.25rem; }
+/* Streamlit paints the file chip's icon tile with the theme text colour, which on a
+   dark ground is a white square bright enough to pull the eye off the result. */
+[data-testid="stFileChip"] > div:first-child { background: var(--nx-chalk-dim); }
 
-.nx-eyebrow {
-    font-family: %(mono)s;
-    font-size: 0.68rem;
-    font-weight: 500;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--nx-oxide);
-}
-
-.stApp h1.nx-title {
-    margin: 0;
-    padding: 0;
-    font-size: 1.6rem;
-    font-weight: 600;
-    line-height: 1.15;
-    letter-spacing: -0.015em;
-}
-
-.stApp p.nx-standfirst {
-    margin: 1rem 0 2rem;
-    max-width: 62ch;
-    color: var(--nx-ink-muted);
-    line-height: 1.6;
-}
+/* ── Readout ──────────────────────────────────────────────────────────── */
 
 .nx-readout {
     display: flex;
     flex-wrap: wrap;
-    gap: 2.5rem;
-    margin: 1.5rem 0 1rem;
-    padding: 0.9rem 1.1rem;
-    background: var(--nx-surface);
-    border: 1px solid var(--nx-rule);
-    border-left: 3px solid var(--nx-oxide);
-    border-radius: 2px;
+    gap: 2.4rem;
+    margin: 0 0 1.1rem;
+    padding: 0.95rem 1.15rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-left: 3px solid var(--nx-instrument);
+    border-radius: 3px;
 }
 
 .nx-readout dt {
-    font-size: 0.66rem;
-    font-weight: 600;
-    letter-spacing: 0.11em;
+    font-family: %(mono)s;
+    font-size: 0.64rem;
+    font-weight: 500;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
-    color: var(--nx-ink-muted);
+    color: var(--nx-chalk-dim);
 }
 
 .nx-readout dd {
-    margin: 0.2rem 0 0;
+    margin: 0.3rem 0 0;
     font-family: %(mono)s;
     font-size: 1.05rem;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
-    color: var(--nx-ink);
+    color: var(--nx-chalk);
 }
 
+/* ── Explanation ──────────────────────────────────────────────────────── */
+
 /* Streamlit ships rules for h1-h3 and p that beat a bare class selector, so every
-   heading and paragraph below is qualified by element and scoped to .stApp. Dropping
+   heading and paragraph here is qualified by element and scoped to .stApp. Dropping
    the qualifier silently hands the type scale back to Streamlit's defaults. */
 .nx-explain-head {
     margin: 3.25rem 0 0;
-    padding-top: 1.6rem;
-    border-top: 2px solid var(--nx-ink);
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--nx-hairline);
 }
 
 .stApp h2.nx-explain-title {
     margin: 0;
     padding: 0;
-    font-size: 1.15rem;
+    font-size: 1.3rem;
     font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--nx-ink);
+    letter-spacing: -0.02em;
+    color: var(--nx-chalk);
 }
 
 .stApp p.nx-explain-standfirst {
     margin: 0.45rem 0 0;
     max-width: 62ch;
-    color: var(--nx-ink-muted);
-    line-height: 1.6;
+    color: var(--nx-chalk-dim);
+    line-height: 1.55;
 }
 
-.nx-panel-head {
-    margin: 2.25rem 0 0.35rem;
-    padding-top: 1.1rem;
-    border-top: 1px solid var(--nx-rule);
-}
+/* ── Panel deck ───────────────────────────────────────────────────────── */
 
-.nx-panel-titles {
+.nx-deck-status {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 0.6rem;
+    gap: 0.75rem;
+    margin: 2rem 0 0.6rem;
 }
 
-.stApp h3.nx-panel-title {
-    margin: 0;
-    padding: 0;
-    font-size: 0.95rem;
+.nx-deck-counter {
+    font-family: %(mono)s;
+    font-size: 0.68rem;
     font-weight: 600;
-    color: var(--nx-ink);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--nx-instrument);
 }
+
+.nx-deck-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--nx-chalk);
+}
+
+.st-key-nx-deck-nav {
+    padding: 0.6rem 0.7rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-radius: 3px;
+}
+
+/* 44px keeps every cell a comfortable target on a touch screen, which the numbered
+   ones would not be if they were sized to their two characters. */
+.st-key-nx-deck-steps { margin-bottom: 0.5rem; }
+
+.st-key-nx-deck-nav .stButton button {
+    min-height: 44px;
+    font-family: %(mono)s;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    font-variant-numeric: tabular-nums;
+}
+
+.st-key-nx-deck-nav [class*="st-key-nx-back"] button:disabled,
+.st-key-nx-deck-nav [class*="st-key-nx-next"] button:disabled {
+    opacity: 0.35;
+}
+
+.stApp p.nx-panel-caption { margin: 1.4rem 0 0; }
 
 /* The filename is the one string on the page the user supplied, so it is set in
    mono and boxed: it reads as a value being reported back, not as our own prose. */
 .nx-panel-subject {
-    padding: 0.12rem 0.4rem;
+    padding: 0.14rem 0.45rem;
     font-family: %(mono)s;
     font-size: 0.72rem;
     font-weight: 500;
-    color: var(--nx-oxide-deep);
-    background: var(--nx-oxide-wash);
+    color: var(--nx-instrument);
+    background: var(--nx-instrument-wash);
+    border: 1px solid var(--nx-hairline-strong);
     border-radius: 2px;
 }
 
 .stApp p.nx-panel-caption {
     margin: 0.5rem 0 0;
     max-width: 68ch;
-    font-size: 0.88rem;
+    font-size: 0.87rem;
     line-height: 1.6;
-    color: var(--nx-ink-muted);
+    color: var(--nx-chalk-dim);
 }
 
 .stApp p.nx-panel-key {
@@ -206,14 +415,14 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     gap: 0.45rem;
     margin: -0.5rem 0 0;
     font-size: 0.78rem;
-    color: var(--nx-ink-muted);
+    color: var(--nx-chalk-dim);
 }
 
 .nx-key-mark {
     display: inline-block;
     width: 2px;
     height: 0.85rem;
-    background: var(--nx-ink);
+    background: var(--nx-chalk);
 }
 
 .nx-metrics {
@@ -221,49 +430,61 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     gap: 1px;
     margin: 1.1rem 0 0;
-    background: var(--nx-rule);
-    border: 1px solid var(--nx-rule);
-    border-radius: 2px;
+    background: var(--nx-hairline);
+    border: 1px solid var(--nx-hairline);
+    border-radius: 3px;
     overflow: hidden;
 }
 
 .nx-metric {
-    padding: 0.95rem 1.05rem;
-    background: var(--nx-surface);
+    padding: 1rem 1.1rem;
+    background: var(--nx-deck);
 }
 
 .nx-metric dt {
-    font-size: 0.66rem;
-    font-weight: 600;
-    letter-spacing: 0.11em;
+    font-family: %(mono)s;
+    font-size: 0.64rem;
+    font-weight: 500;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
-    color: var(--nx-ink-muted);
+    color: var(--nx-chalk-dim);
 }
 
 .nx-metric dd {
-    margin: 0.35rem 0 0;
+    margin: 0.4rem 0 0;
     font-family: %(mono)s;
-    font-size: 1.5rem;
+    font-size: 1.65rem;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
-    line-height: 1.1;
-    color: var(--nx-ink);
+    line-height: 1.05;
+    color: var(--nx-instrument);
 }
 
 /* Inside the <dd> rather than beside it: a <div> in a <dl> may only hold <dt> and
    <dd>, so the detail has to live within the value it describes. */
 .nx-metric dd span {
     display: block;
-    margin-top: 0.35rem;
+    margin-top: 0.4rem;
     font-family: %(sans)s;
     font-size: 0.78rem;
     font-weight: 400;
     line-height: 1.45;
-    color: var(--nx-ink-muted);
+    color: var(--nx-chalk-dim);
+}
+
+@media (max-width: 640px) {
+    .nx-chip { display: none; }
+    [class*="st-key-nx-card-"] { min-height: 0; }
+
+    /* Streamlit stacks columns on a narrow screen, which would turn the rail into six
+       full-height buttons and cost more scrolling than the deck saves. The counter
+       above already says which step this is, so only back and next are kept. */
+    .st-key-nx-deck-steps { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .stDownloadButton button, .stButton button { transition: none; }
+    .stDownloadButton button, .stButton button,
+    [class*="st-key-nx-card-"] { transition: none; }
 }
 """ % {"sans": SANS_STACK, "mono": MONO_STACK}
 

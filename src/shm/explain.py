@@ -24,36 +24,22 @@ from .features import cycle_damage, extract_cycles
 from .model import DamageModel
 from .predict import load_model
 
-BULLET_TITLE = "Fatigue life consumed"
-BULLET_CAPTION = (
-    "Damage accumulates from zero, and the structure reaches the end of its "
-    "fatigue life at 1.00. Every bar is drawn on that same scale, so the gap to "
-    "the marker is the margin left."
-)
+BULLET_TITLE = "Fatigue life used"
+BULLET_CAPTION = "Fatigue life runs out at 1.00. The gap to the marker is what is left."
 TARGET_LABEL = "End of life (D = 1.00)"
 
-METRICS_TITLE = "Reading for the most damaged file"
-METRICS_CAPTION = (
-    "Miner's rule is linear, so the damage from one recording simply adds to the "
-    "next. That makes the reciprocal meaningful: it is how many recordings like "
-    "this one the structure has left in it."
-)
+METRICS_TITLE = "Worst file"
+METRICS_CAPTION = "Damage adds up run by run, so this counts the runs still left."
 
 BANDS_TITLE = "Where the damage comes from"
 BANDS_CAPTION = (
-    "Every closed stress cycle, sorted by how much damage it does, then split "
-    "into groups that do not overlap — so the four shares add up to 100%. "
-    "Fatigue depends on stress amplitude raised to a power near five, which is "
-    "why a very small number of large cycles accounts for nearly all of it."
+    "Cycles sorted by damage, in groups that do not overlap, so the shares total "
+    "100%. A few large cycles do nearly all of it."
 )
 BANDS_VALUE_TITLE = "Share of total damage"
 
-TRACE_TITLE = "Stress history as recorded"
-TRACE_CAPTION = (
-    "The uploaded signal, reduced to its highest and lowest reading in each short "
-    "window. Peaks are kept rather than averaged away, because in fatigue they "
-    "are the only samples that do any damage."
-)
+TRACE_TITLE = "Stress history"
+TRACE_CAPTION = "Highest and lowest reading per window. Peaks are kept, not averaged away."
 TRACE_X_TITLE = "Sample"
 # The Info Kit documents neither the stress unit nor the sampling rate, so the axes
 # say what is actually known instead of implying MPa and seconds.

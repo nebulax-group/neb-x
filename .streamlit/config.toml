@@ -1,17 +1,17 @@
 [theme]
-base = "light"
+base = "dark"
 
-primaryColor = "#A8481C"
-backgroundColor = "#F3F1EC"
-secondaryBackgroundColor = "#FCFBF8"
-textColor = "#14171A"
-linkColor = "#8A3A16"
-borderColor = "#D6D1C7"
-dataframeBorderColor = "#D6D1C7"
-dataframeHeaderBackgroundColor = "#EAE6DE"
+primaryColor = "#5BC8DE"
+backgroundColor = "#0A1319"
+secondaryBackgroundColor = "#101F27"
+textColor = "#E9F1F4"
+linkColor = "#5BC8DE"
+borderColor = "#213A46"
+dataframeBorderColor = "#213A46"
+dataframeHeaderBackgroundColor = "#172B35"
 
-font = "IBM Plex Sans"
-headingFont = "IBM Plex Sans"
+font = "Archivo"
+headingFont = "Archivo"
 codeFont = "IBM Plex Mono"
 baseFontSize = 15
 
@@ -19,15 +19,15 @@ showWidgetBorder = true
 baseRadius = "small"
 buttonRadius = "small"
 
-greenColor = "#2E6A4A"
-redColor = "#9E2B20"
-orangeColor = "#8A6208"
+greenColor = "#43B888"
+redColor = "#E4584C"
+orangeColor = "#E3A93F"
 
 # st.info is the "no model yet" state, shown for three subsystems out of four, so its
-# blue is part of the palette rather than an exception to it.
-blueColor = "#2F5560"
-blueBackgroundColor = "#E7ECEC"
-blueTextColor = "#22414A"
+# colour is the instrument accent rather than an exception to the palette.
+blueColor = "#5BC8DE"
+blueBackgroundColor = "#123039"
+blueTextColor = "#E9F1F4"
 
 [server]
 headless = true

@@ -18,10 +18,11 @@ import pandas as pd
 import streamlit as st
 
 from src.app.config import (
+    CHART_AXIS_ALLOWANCE,
     CHART_LABEL_FONT_SIZE,
     CHART_LABEL_OFFSET,
-    CHART_AXIS_ALLOWANCE,
     CHART_PADDING,
+    CHART_PADDING_LEFT,
     CHART_ROW_HEIGHT,
     CHART_ROW_PADDING,
     CHART_TITLE_FONT_SIZE,
@@ -29,7 +30,12 @@ from src.app.config import (
     EXPLAIN_STANDFIRST,
     MONO_STACK,
     PALETTE,
+    PANEL_STATE_KEY,
     SANS_STACK,
+    STEP_BACK,
+    STEP_COUNTER,
+    STEP_NEXT,
+    STEP_NUMBER,
     TRACE_PLOT_HEIGHT,
 )
 
@@ -44,19 +50,20 @@ _LABEL_INSIDE_SHARE = 0.65
 _LABEL_GAP = 6
 _INSIDE = "_inside"
 _TICK_TARGET = 9
+_RAIL_SLACK = 4
 
 _HEADING = """<div class="nx-explain-head">
 <h2 class="nx-explain-title">{heading}</h2>
 <p class="nx-explain-standfirst">{standfirst}</p>
 </div>"""
 
-_PANEL_HEAD = """<div class="nx-panel-head">
-<div class="nx-panel-titles">
-<h3 class="nx-panel-title">{title}</h3>
+_DECK_STATUS = """<div class="nx-deck-status">
+<span class="nx-deck-counter">{counter}</span>
+<span class="nx-deck-title">{title}</span>
 {subject}
-</div>
-{caption}
 </div>"""
+
+_PANEL_CAPTION = '<p class="nx-panel-caption">{caption}</p>'
 
 
 # Vega-Lite merges a layered chart down to one axis per channel, and a single
@@ -76,14 +83,14 @@ def _axis(
         format=alt.Undefined if number_format is None else number_format,
         values=alt.Undefined if values is None else values,
         grid=grid,
-        gridColor=PALETTE["rule"],
+        gridColor=PALETTE["hairline"],
         gridOpacity=0.7,
-        domainColor=PALETTE["rule-strong"],
-        tickColor=PALETTE["rule-strong"],
-        labelColor=PALETTE["ink-muted"],
+        domainColor=PALETTE["hairline-strong"],
+        tickColor=PALETTE["hairline-strong"],
+        labelColor=PALETTE["chalk-dim"],
         labelFont=SANS_STACK,
         labelFontSize=CHART_LABEL_FONT_SIZE,
-        titleColor=PALETTE["ink-muted"],
+        titleColor=PALETTE["chalk-dim"],
         titleFont=SANS_STACK,
         titleFontSize=CHART_TITLE_FONT_SIZE,
         titleFontWeight=600,
@@ -96,7 +103,7 @@ def _row_y() -> alt.Y:
     axis = alt.Axis(
         labelFont=MONO_STACK,
         labelFontSize=CHART_LABEL_FONT_SIZE,
-        labelColor=PALETTE["ink"],
+        labelColor=PALETTE["chalk"],
         labelLimit=280,
         labelPadding=CHART_LABEL_OFFSET,
         domain=False,
@@ -159,7 +166,7 @@ def _bar_layers(
     half the rows.
     """
     text = alt.Text("value:Q", format=formatter)
-    bars = alt.Chart(frame).mark_bar(color=PALETTE["oxide"], cornerRadiusEnd=1).encode(
+    bars = alt.Chart(frame).mark_bar(color=PALETTE["instrument"], cornerRadiusEnd=1).encode(
         y=_row_y(),
         x=_row_x("value", value_title, span, axis_format),
         tooltip=[
@@ -177,7 +184,7 @@ def _bar_layers(
             font=MONO_STACK,
             fontSize=CHART_LABEL_FONT_SIZE,
             fontWeight=500,
-            color=PALETTE["paper"] if inside else PALETTE["ink"],
+            color=PALETTE["abyss"] if inside else PALETTE["chalk"],
         ).encode(
             y=_row_y(),
             x=_row_x("value", value_title, span, axis_format),
@@ -201,7 +208,8 @@ def _finish(layers: list[alt.Chart], height: int) -> alt.Chart:
     # ``autosize.contains = "padding"`` and its chart wrapper then writes
     # ``padding.bottom`` onto the spec, which throws on a bare number and takes the
     # whole chart down in the browser with nothing showing in the Python logs.
-    padding = dict.fromkeys(("top", "right", "bottom", "left"), CHART_PADDING)
+    padding = dict.fromkeys(("top", "right", "bottom"), CHART_PADDING)
+    padding["left"] = CHART_PADDING_LEFT
     return (
         alt.layer(*layers)
         .properties(width="container", height=height, padding=padding)
@@ -230,12 +238,12 @@ def _render_bullet(panel: dict[str, Any]) -> None:
     # The track is the whole of the structure's fatigue life, so a short bar reads
     # as margin remaining rather than merely as a small number.
     value_title = "Cumulative damage (D)"
-    track = alt.Chart(frame).mark_bar(color=PALETTE["grid-header"], cornerRadiusEnd=1).encode(
+    track = alt.Chart(frame).mark_bar(color=PALETTE["deck-high"], cornerRadiusEnd=1).encode(
         y=_row_y(),
         x=_row_x("target", value_title, span, None),
     )
     marker = alt.Chart(frame).mark_tick(
-        color=PALETTE["ink"],
+        color=PALETTE["chalk"],
         thickness=2,
         size=CHART_ROW_HEIGHT * (1 - CHART_ROW_PADDING),
     ).encode(
@@ -273,7 +281,7 @@ def _render_line(panel: dict[str, Any]) -> None:
     x, y = panel["points"]
     frame = pd.DataFrame({x_title: x, y_title: y})
 
-    line = alt.Chart(frame).mark_line(color=PALETTE["oxide"], strokeWidth=0.7).encode(
+    line = alt.Chart(frame).mark_line(color=PALETTE["instrument"], strokeWidth=0.7).encode(
         x=alt.X(f"{x_title}:Q", axis=_axis(x_title, grid=False), scale=alt.Scale(nice=False)),
         y=alt.Y(f"{y_title}:Q", axis=_axis(y_title, grid=True)),
         tooltip=[
@@ -283,7 +291,7 @@ def _render_line(panel: dict[str, Any]) -> None:
     )
     # Fatigue counts swings about the mean, so the zero line is the reference the
     # eye needs to read an amplitude off the trace.
-    zero = alt.Chart(frame).mark_rule(color=PALETTE["ink-muted"], strokeWidth=1, opacity=0.5).encode(
+    zero = alt.Chart(frame).mark_rule(color=PALETTE["chalk-dim"], strokeWidth=1, opacity=0.5).encode(
         y=alt.datum(0)
     )
     _draw([zero, line], _chart_height(TRACE_PLOT_HEIGHT))
@@ -306,8 +314,72 @@ def _has_content(panel: dict[str, Any]) -> bool:
     return True
 
 
+def _goto(index: int) -> None:
+    # A callback rather than a return value: Streamlit runs it before the rerun, so the
+    # rail and the panel below it always agree about which step is showing.
+    st.session_state[PANEL_STATE_KEY] = index
+
+
+def _current_step(count: int) -> int:
+    """The selected step, clamped: a shorter batch must not strand the index."""
+    return max(0, min(int(st.session_state.get(PANEL_STATE_KEY, 0)), count - 1))
+
+
+def _render_rail(panels: list[dict[str, Any]], index: int) -> None:
+    """The step rail: one numbered cell per panel, plus back and next."""
+    count = len(panels)
+    st.markdown(
+        _DECK_STATUS.format(
+            counter=escape(STEP_COUNTER.format(current=index + 1, total=count)),
+            title=escape(panels[index]["title"]),
+            subject=(
+                f'<span class="nx-panel-subject">{escape(subject)}</span>'
+                if (subject := panels[index].get("subject"))
+                else ""
+            ),
+        ),
+        unsafe_allow_html=True,
+    )
+
+    with st.container(key="nx-deck-nav"):
+        with st.container(key="nx-deck-steps"):
+            # More columns than steps: the cells are controls, not a progress bar, and
+            # stretching four of them across the full width reads as empty furniture.
+            for step, column in enumerate(st.columns(count + _RAIL_SLACK)[:count]):
+                with column:
+                    st.button(
+                        STEP_NUMBER.format(number=step + 1),
+                        key=f"nx-step-{step}",
+                        type="primary" if step == index else "secondary",
+                        width="stretch",
+                        on_click=_goto,
+                        args=(step,),
+                        help=panels[step]["title"],
+                    )
+
+        # Back and next sit on their own row rather than sharing the numbers' one. A
+        # single row needs a spacer column between them, and Streamlit keeps that
+        # spacer's width when the numbers are hidden on a phone, leaving the two
+        # buttons squeezed to nothing.
+        for column, label, target, spent in zip(
+            st.columns([1.5, 1.5, _RAIL_SLACK]),
+            (STEP_BACK, STEP_NEXT),
+            (index - 1, index + 1),
+            (index == 0, index == count - 1),
+        ):
+            with column:
+                st.button(
+                    label,
+                    key=f"nx-{label.lower()}",
+                    disabled=spent,
+                    width="stretch",
+                    on_click=_goto,
+                    args=(target,),
+                )
+
+
 def render(panels: list[dict[str, Any]]) -> None:
-    """Draw every panel in order, under one heading. Silent when there are none."""
+    """Draw the panels as a deck, one step at a time. Silent when there are none."""
     if not panels:
         return
 
@@ -316,22 +388,17 @@ def render(panels: list[dict[str, Any]]) -> None:
         unsafe_allow_html=True,
     )
 
-    for panel in panels:
-        subject = panel.get("subject")
-        caption = panel.get("caption")
-        st.markdown(
-            _PANEL_HEAD.format(
-                title=escape(panel["title"]),
-                subject=f'<span class="nx-panel-subject">{escape(subject)}</span>' if subject else "",
-                caption=f'<p class="nx-panel-caption">{escape(caption)}</p>' if caption else "",
-            ),
-            unsafe_allow_html=True,
-        )
+    index = _current_step(len(panels))
+    _render_rail(panels, index)
 
-        renderer = _RENDERERS.get(panel["kind"])
-        if renderer is None:
-            st.warning(UNKNOWN_PANEL_MESSAGE.format(kind=panel["kind"]))
-        elif not _has_content(panel):
-            st.caption(EMPTY_PANEL_MESSAGE)
-        else:
-            renderer(panel)
+    panel = panels[index]
+    if caption := panel.get("caption"):
+        st.markdown(_PANEL_CAPTION.format(caption=escape(caption)), unsafe_allow_html=True)
+
+    renderer = _RENDERERS.get(panel["kind"])
+    if renderer is None:
+        st.warning(UNKNOWN_PANEL_MESSAGE.format(kind=panel["kind"]))
+    elif not _has_content(panel):
+        st.caption(EMPTY_PANEL_MESSAGE)
+    else:
+        renderer(panel)

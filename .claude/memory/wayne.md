@@ -57,6 +57,115 @@ would be wrong without. This applies to every file written for this project, by 
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-18 22:05 - Explain panels are a stepped deck, one at a time
+
+**What.** The explainability panels no longer stack down the page. `src/app/ui/explain.py` now
+draws one panel per step, with a numbered rail plus back and next above it. Interface copy was
+cut back across `src/app/config.py` and `src/shm/explain.py`, and em dashes are out of every
+on-screen string.
+
+Four things cross a boundary:
+
+1. **A subsystem's panels are shown one at a time, in the order `explain()` returns them.** Put
+   the panel that answers the question first; it is the one a viewer sees without clicking. The
+   panel contract itself is unchanged, so nothing you write needs editing.
+2. **A panel's `title` and `subject` are drawn by the rail, not above the chart.** Do not repeat
+   the title inside a panel, it will show twice.
+3. **New config names:** `PANEL_STATE_KEY`, `STEP_COUNTER`, `STEP_BACK`, `STEP_NEXT`,
+   `STEP_NUMBER`, `CHART_PADDING_LEFT`. `_PANEL_HEAD` in `explain.py` is gone, along with the
+   `.nx-panel-title` and `.nx-panel-titles` rules in `theme.py`.
+4. **Interface copy is terse now and has no em dashes.** Match it if you add a string. One short
+   sentence, two at most, and a full stop where an em dash would have gone.
+
+**Two traps.**
+
+- **A Streamlit button with `help=` renders two `button` nodes**, one of them the hidden tooltip
+  target. A `.st-key-x button` selector in a test hits the hidden one first and reports "element
+  is not visible". Use `button:visible`.
+- **Do not put a spacer column between back and next.** Streamlit keeps that spacer's width when
+  the sibling columns are hidden at phone width, and the two buttons collapse to nothing. They
+  sit on their own two column row instead.
+
+**Why.** Wayne asked for it: four stacked charts made a very long page, and scrolling is dead
+time in a three minute demo video. Discrete steps also tell a viewer how many there are.
+
+**Verified.** Playwright at 1440px, 768px and 390px, stepping through all four panels: zero
+console errors, zero page errors, zero exceptions, zero horizontal overflow, exactly one chart
+rendered per step. The numbered cells are hidden below 640px, where back and next carry the
+navigation and the step counter says the position.
+
+**Affects.** Jermaine, Jou: points 1 and 2 change how your panels appear if you write an
+`explain.py`, and point 4 is the copy standard now. The checkpoint problem from the 19:51 entry
+is still unresolved.
+
+### 2026-09-18 21:25 — The app is a dark instrument board; every palette token renamed
+
+**What.** The app was redesigned end to end. It was warm cream with a terracotta accent,
+hairline rules and a `st.selectbox` that defaulted to Door — a subsystem with no model, so the
+first thing anyone saw, judge included, was "not available yet". It is now a depot condition
+desk: deep petrol ground, instrument cyan accent, Archivo over IBM Plex Mono, and a board of
+four cards with readiness lamps in place of the dropdown.
+
+Eight things cross a boundary:
+
+1. **Every `PALETTE` key was renamed. The old ones are gone** and `PALETTE["oxide"]` is now a
+   `KeyError`, not a wrong colour. The new names: `abyss` `deck` `deck-high` `hairline`
+   `hairline-strong` `chalk` `chalk-dim` `instrument` `instrument-deep` `instrument-wash`
+   `clear` `caution` `danger`. If you wrote anything against the old palette, it needs the
+   mapping: oxide→instrument, paper→abyss, ink→chalk, ink-muted→chalk-dim, rule→hairline,
+   rule-strong→hairline-strong, grid-header→deck-high.
+2. **`.streamlit/config.toml` is `base = "dark"`** and still has to agree with `PALETTE`
+   value-for-value; `theme.verify_widget_theme()` raises at startup and names the key that
+   disagrees. Changing a colour still means changing both files.
+3. **`upload.render_subsystem_picker` is gone.** Selection lives in the new
+   `src/app/ui/board.py`, which loops over `SUBSYSTEM_LABELS` and asks `services.is_available`
+   per key — still no branching on subsystem internals, so rule 8 holds.
+4. **`upload.render_uploader(label, subsystem)` takes the subsystem key now.** The uploader is
+   keyed per subsystem so switching systems clears the previous batch instead of carrying one
+   system's recordings into another system's model.
+5. **`src/app/config.py` gained `SUBSYSTEM_BLURBS`,** one line per subsystem saying what it
+   listens to. It is checked against `SUBSYSTEMS` at import, so a missing key raises rather
+   than quietly dropping a card. Adding a subsystem means adding a line there and in
+   `SUBSYSTEM_LABELS`, and nothing else.
+6. **New `src/app/ui/section.py`** draws the section heads. Use it rather than a fresh heading,
+   or the board and the results drift apart in type and spacing.
+7. **The panel contract in `src/app/services.py` is unchanged.** If you were going to write
+   `src/<sub>/explain.py`, none of this affects you — the four kinds and their fields are the
+   same, and the charts are now drawn in the new palette automatically.
+8. **Three more traps, on top of the four in the 20:10 entry:**
+   - **`_STYLESHEET` in `theme.py` is `%`-formatted**, so every literal `%` in the CSS must be
+     written `%%`. A single `height: 100%` took the whole app down with
+     `TypeError: not enough arguments for format string` — at import, before anything rendered.
+   - **A card is `st.container(key=...)`**, which Streamlit turns into a stable
+     `st-key-<key>` class. That is the only way to get one border around a markdown block and
+     its button. State is carried by a class on the inner markup and read with `:has()`.
+   - **Push the button to the foot of a card with `:has(.stButton)`, not `:last-child`.** The
+     dormant cards have no button, so a `:last-child` rule bottom-aligns their text instead and
+     the board looks broken in a way that only shows on the cards you were not testing.
+
+**Why.** Ease of Use is a third of the grade outright and Problem Fit separately lists UI and
+explainability, so the app carries more weight than any one subsystem's model. The old page had
+two real faults underneath the aesthetics: it opened on a dead end, and it presented the result
+as a bare table of floats that a non-technical reader cannot rank. The board fixes the first and
+states readiness up front; the dark instrument ground exists because this is a condition
+monitoring desk, and the stress trace in cyan on petrol reads as an instrument rather than as a
+chart in a document.
+
+**Verified.** Playwright drove the real app end to end at 1440px, 768px and 390px — pick SHM,
+upload, wait for the panels, scroll to the trace. Zero console errors, zero page errors, zero
+`stException` blocks, zero horizontal overflow, three charts with a rendered surface each, at
+every width. `AppTest` would have caught none of it; the `%` fault above was an import-time
+crash and the card misalignment was visible only in a screenshot.
+
+**Affects.**
+
+- **Jermaine, Jou.** Points 1 to 6 are the ones that can break something you have already
+  written. Point 7 is the reassurance: the explain contract did not move.
+- **Both, still unresolved.** The checkpoint problem from the 19:51 entry has not moved.
+  `outputs/` is gitignored, the demo video is one take across four subsystems on one machine,
+  and `Optional_Items/<Subsystem>/model/` remains the obvious home. Still needs a decision from
+  the three of us.
+
 ### 2026-09-18 20:10 — Subsystems may now explain themselves; the app draws it generically
 
 **What.** The app gained a second, optional capability alongside `predict`. If

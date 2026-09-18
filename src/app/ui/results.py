@@ -4,6 +4,8 @@ Rendering only. The frame arrives already in its subsystem's submission schema;
 nothing here inspects or reshapes its columns.
 """
 
+from html import escape
+
 import pandas as pd
 import streamlit as st
 
@@ -11,8 +13,10 @@ from src.app.config import (
     DOWNLOAD_LABEL,
     ERROR_HINT,
     READOUT_CAPTIONS,
+    RESULTS_HEADING,
     UNAVAILABLE_MESSAGE,
 )
+from src.app.ui import section
 
 # Left-aligned at column zero on purpose: st.markdown reads four leading spaces as
 # an indented code block and would print this markup instead of rendering it.
@@ -25,11 +29,12 @@ _READOUT = """<dl class="nx-readout">
 
 def render_results(frame: pd.DataFrame, download_name: str, subsystem_label: str) -> None:
     """Show the prediction rows and offer them as the submission CSV."""
+    section.render(RESULTS_HEADING)
     st.markdown(
         _READOUT.format(
-            system=subsystem_label,
+            system=escape(subsystem_label),
             rows=len(frame),
-            output=download_name,
+            output=escape(download_name),
             **READOUT_CAPTIONS,
         ),
         unsafe_allow_html=True,

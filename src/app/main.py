@@ -1,4 +1,4 @@
-"""The app's entry point and routing: pick a subsystem, upload, predict, download.
+"""The app's entry point and routing: pick a system, add files, predict, download.
 
 Run from the repository root with ``streamlit run src/app/main.py``. Screens live
 in ``src/app/ui/`` and the subsystem calls in ``src/app/services.py``; this file
@@ -18,23 +18,44 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.app import config, services  # noqa: E402
-from src.app.ui import explain, masthead, results, theme, upload  # noqa: E402
+from src.app.ui import board, explain, masthead, results, section, theme, upload  # noqa: E402
 
 
 def main() -> None:
     st.set_page_config(page_title=config.PAGE_TITLE, layout=config.PAGE_LAYOUT)
     theme.apply()
-    masthead.render(config.EYEBROW, config.PAGE_TITLE, config.STANDFIRST)
 
-    subsystem = upload.render_subsystem_picker(config.SUBSYSTEM_LABELS)
+    available = {key: services.is_available(key) for key in config.SUBSYSTEM_LABELS}
+    masthead.render(
+        config.EYEBROW,
+        config.PAGE_TITLE,
+        config.STANDFIRST,
+        chip=config.READY_CHIP.format(
+            ready=sum(available.values()), total=len(available)
+        ),
+    )
+
+    section.render(config.BOARD_HEADING, config.BOARD_STANDFIRST)
+    subsystem = board.render(
+        config.SUBSYSTEM_LABELS,
+        config.SUBSYSTEM_BLURBS,
+        available,
+        config.SELECTED_STATE_KEY,
+    )
+    if subsystem is None:
+        st.caption(config.BOARD_WAITING)
+        return
+
     label = config.SUBSYSTEM_LABELS[subsystem]
-
-    if not services.is_available(subsystem):
+    # The board disables a system with no model, so this only fires if one goes
+    # missing between reruns — still said out loud rather than crashed on.
+    if not available[subsystem]:
         results.render_unavailable(label)
         return
 
-    uploads = upload.render_uploader(label)
+    uploads = upload.render_uploader(label, subsystem)
     if not uploads:
+        upload.render_waiting(label)
         return
 
     try:
