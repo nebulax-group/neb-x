@@ -1,0 +1,36 @@
+[theme]
+base = "dark"
+
+primaryColor = "#5BC8DE"
+backgroundColor = "#0A1319"
+secondaryBackgroundColor = "#101F27"
+textColor = "#E9F1F4"
+linkColor = "#5BC8DE"
+borderColor = "#213A46"
+dataframeBorderColor = "#213A46"
+dataframeHeaderBackgroundColor = "#172B35"
+
+font = "Archivo"
+headingFont = "Archivo"
+codeFont = "IBM Plex Mono"
+baseFontSize = 15
+
+showWidgetBorder = true
+baseRadius = "small"
+buttonRadius = "small"
+
+greenColor = "#43B888"
+redColor = "#E4584C"
+orangeColor = "#E3A93F"
+
+# st.info is the "no model yet" state, shown for three subsystems out of four, so its
+# colour is the instrument accent rather than an exception to the palette.
+blueColor = "#5BC8DE"
+blueBackgroundColor = "#123039"
+blueTextColor = "#E9F1F4"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
