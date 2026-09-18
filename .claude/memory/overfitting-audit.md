@@ -118,4 +118,31 @@ at 1.068 (train) against 1.067 (test), abnormal ranges overlap (1.135-1.722 agai
 and the abnormal rate is 27% against 21%. A transfer failure would show as a shifted ceiling. It
 does not.
 
+## k-fold sweep with a cross-fitted baseline - the strictest leakage test
+
+The per-stream median is a nuisance parameter the ratio feature depends on, and normally every
+cycle contributes to its own normalisation. **Cross-fitting** estimates it from the out-of-fold
+rows only, so a held-out cycle never influences the number used to score it.
+
+| Protocol | Learned split | Fixed 1.10 |
+|---|---|---|
+| 2-fold, baseline from whole stream | 0.9273 | **1.0000** |
+| 3 / 5 / 10 / 22-fold, whole stream | 1.0000 | 1.0000 |
+| 2-fold, **cross-fitted** | 0.8909 | **1.0000** |
+| 3 / 5 / 10 / 22-fold, **cross-fitted** | 1.0000 | 1.0000 |
+| **Leave-one-out (110 folds), cross-fitted** | **1.0000** | **1.0000** |
+| 5-fold x 10 repeats, cross-fitted | 1.0000 | 1.0000 |
+
+**Cross-fitting changes nothing at any k except 2.** The baseline carries no label information -
+that is what "not leakage" means, demonstrated rather than argued. Leave-one-out is the headline:
+110 folds, each cycle scored by a model and a baseline that never saw it, zero errors.
+
+The k=2 dip is the same split-placement effect documented above: 55 training cycles is too few for
+HistGradientBoosting to land inside the 1.068-1.135 safe zone. **The fixed threshold holds at
+1.0000 through every protocol, k=2 cross-fitted included** - more evidence that the robustness
+lives in the threshold, not the estimator.
+
+For ACV, leave-one-case-out with five cases already IS k-fold at its maximum; the 5/5 above is that
+result.
+
 See also: [[jouyuan]], [[problem-statment]], [[bench-notes-artifact]].
