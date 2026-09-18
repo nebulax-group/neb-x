@@ -56,8 +56,8 @@ def iou_weighted_f1(truth: pd.DataFrame, predicted: pd.DataFrame) -> float:
         used_pred.add(pi)
         total_iou += iou
 
-    if not true_spans or not pred_spans:
-        return 0.0
+    # An empty truth or predicted frame is not handled here: parse_datetime already
+    # raises before this function reaches it, on an empty frame's string columns.
     soft_recall = total_iou / len(true_spans)
     soft_precision = total_iou / len(pred_spans)
     if soft_recall + soft_precision == 0:
