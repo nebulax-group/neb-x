@@ -1,8 +1,17 @@
-"""Both ACV signals side by side, so a human can see whether they agree.
+"""Both ACV signals side by side, for a human to inspect before submitting.
 
-The duty cycle is physically independent of the temperature excess: one measures
-whether a car holds its target, the other how hard it works to try. Agreement is
-evidence for the top pick; disagreement is a reason to look closer before submitting.
+cooling_duty_cycle was included as an independent check on the theory that a leaking
+car, unable to hold its setpoint, runs its compressor longer than a healthy one.
+Measured across all six case files (the five reference cases plus the held-out file),
+it does not bear that out: duty cycle spans only 0.001-0.04 between the eight cars in
+every single file - every car in a case runs at essentially the same duty cycle. An
+exact-rank-agreement check built on that signal was false for the top-ranked car in
+all six files, including the five reference cases where that car is the known-correct
+answer, which shows the flatness rather than any real disagreement.
+
+Both raw signals and both ranks are still shown, so a reader can see the flatness
+themselves - and so a future file with real duty-cycle separation would be visible
+too - but no agreement/disagreement verdict is computed from them.
 """
 
 from pathlib import Path
@@ -35,5 +44,4 @@ def confirmation(path: str | Path) -> pd.DataFrame:
     table["duty_rank"] = table["cooling_duty_cycle"].rank(
         ascending=False, na_option="bottom"
     ).astype(int)
-    table["agrees"] = table["excess_rank"] == table["duty_rank"]
     return table.sort_values("excess_rank").reset_index(drop=True)

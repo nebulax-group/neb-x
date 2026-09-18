@@ -8,7 +8,7 @@ def test_report_covers_every_car_with_both_signals():
     assert len(frame) == 8
     assert list(frame.columns) == [
         "car_id", "temperature_excess", "cooling_duty_cycle",
-        "excess_rank", "duty_rank", "agrees",
+        "excess_rank", "duty_rank",
     ]
     assert frame["excess_rank"].tolist() == sorted(frame["excess_rank"].tolist())
 
