@@ -15,6 +15,10 @@ SUPPORTED_DATA_EXTENSIONS = (CSV_EXTENSION, XLSX_EXTENSION)
 IGNORED_DATA_FILE_PREFIXES = (".", "~$")
 DEFAULT_EXCEL_SHEET = 0
 
+# The organisers' own column name, shared by every subsystem whose rows name a
+# source file. Door is the exception and has no such column at all.
+FILE_ID_COLUMN = "file_id"
+
 PREDICTION_FILENAMES = {
     subsystem: f"{subsystem}_predictions{CSV_EXTENSION}" for subsystem in SUBSYSTEMS
 }

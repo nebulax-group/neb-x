@@ -6,11 +6,10 @@ rate and stress units are not documented by the Info Kit, so they are absent
 rather than guessed.
 """
 
-from src.common.config import MODEL_DIRS
+from src.common.config import FILE_ID_COLUMN, MODEL_DIRS
 
 SUBSYSTEM_KEY = "shm"
 
-FILE_ID_COLUMN = "file_id"
 PREDICTION_COLUMN = "prediction"
 PREDICTION_COLUMNS = (FILE_ID_COLUMN, PREDICTION_COLUMN)
 

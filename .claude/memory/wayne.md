@@ -57,6 +57,44 @@ would be wrong without. This applies to every file written for this project, by 
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-18 22:40 - validate.py exists; FILE_ID_COLUMN moved into common/config.py
+
+**What.** `src/submission/` now has two files. `schema.py` reads a subsystem's columns off its
+example CSV in `reference/submission_format/`; `validate.py` checks a prediction CSV against
+that and returns every problem it finds. Run it as:
+
+    python -m src.submission.validate <csv> [--inputs <test folder>]
+
+It covers all four subsystems and special cases none of them. Door has no `file_id` and ACV has
+no `prediction`, and both fall out of reading their own example file rather than out of a branch.
+
+Three things cross a boundary:
+
+1. **`FILE_ID_COLUMN` now lives in `src/common/config.py`.** It was defined in
+   `src/shm/config.py`, which now imports it. If you were about to write your own, import it.
+2. **The schema is never restated in code.** It is read from
+   `reference/submission_format/<sub>_predictions.csv`, so the only way to disagree with the
+   contract is to edit the contract. Do not hard code your columns in a check.
+3. **`validate()` returns a list of problems, it does not raise.** Empty list means submittable.
+   The command line turns a non-empty list into a `SystemExit`, so a caller cannot pass quietly.
+
+**What it catches**, each verified against a deliberately broken copy: a stray index column, a
+renamed column, columns in the wrong order, a rebuilt or lowercased `file_id`, a missing row, a
+duplicate id, a blank cell, a header with no rows, and a wrong filename. The Door example from
+`reference/` passes unmodified.
+
+**What it does not check.** Value vocabularies. Rail's `Normal` / `Side I` / `Side II` and ACV's
+`|`-separated car ids cannot be derived from a three row example, so they are left to their
+owners. Add them in your own package if you want them, or tell me and I will put them behind the
+schema.
+
+**Why.** [[team-split]] says no subsystem is finished until its CSV passes validate, and these
+are the failures that score zero while the file looks perfectly fine when opened. The organisers
+do not re-run our code, so the CSV is the whole submission.
+
+**Affects.** Jermaine, Jou: run it on your own CSV before the zip. Point 1 changes an import if
+you defined `FILE_ID_COLUMN` yourself. `package.py` is still unwritten.
+
 ### 2026-09-18 22:05 - Explain panels are a stepped deck, one at a time
 
 **What.** The explainability panels no longer stack down the page. `src/app/ui/explain.py` now
