@@ -86,3 +86,37 @@ thinner than every training margin (0.47–1.13). **The bootstrap is the reason 
 not the 5/5.**
 
 See also: [[jouyuan]], [[problem-statment]], [[bench-notes-artifact]].
+
+## Robustness to specification bias - the strongest ACV evidence
+
+With five reference cases the real exposure is picking the one signal definition that happens to
+work. Six alternatives were written, each validated on the five labelled cases, then applied to the
+held-out file:
+
+| Variant | Passes validation (5/5)? | Rank of car 01 on the test file |
+|---|---|---|
+| mean delta to setpoint (shipped) | **PASS** | 1 |
+| cooling-mode rows only | **PASS** | 1 |
+| fraction of samples above setpoint | **PASS** | 1 |
+| 90th percentile of delta | **PASS** | 1 |
+| peer z-score vs the other seven cars per timestamp | **PASS** | 1 |
+| median delta | fail (3/5) | 1 |
+| hot-weather rows only | fail (4/5) | 1 |
+
+**Five independent definitions pass validation and all five pick car 01** - as do the two that
+fail. Seven ways of asking, one answer. This is what answers the "you tuned it to five files"
+objection, and it is stronger evidence than the 5/5 itself.
+
+## A cross-check that did NOT work - recorded so nobody retries it
+
+The plan was to corroborate Door's 8 flagged test cycles with the current-vs-stroke shape, a
+measurement the shipped model never uses. It separates the labelled data perfectly on its own
+(0/110 errors). **But it does not transfer between doors:** training abnormals score 406+ on the
+per-stream-normalised shape measure while the test stream's flagged cycles score 25-72 - a tenfold
+scale difference that makes any training-derived shape threshold meaningless on another door. This
+is the same instability that disqualified shape as a model input. Do not retry it as a cross-check.
+
+What Door has instead: the two streams align almost exactly once normalised - normal cycles top out
+at 1.068 (train) against 1.067 (test), abnormal ranges overlap (1.135-1.722 against 1.199-1.373),
+and the abnormal rate is 27% against 21%. A transfer failure would show as a shifted ceiling. It
+does not.
