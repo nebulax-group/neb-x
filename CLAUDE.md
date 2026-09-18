@@ -62,6 +62,12 @@ The full twelve rules are in [project-structure.md](.claude/memory/project-struc
   across. Check class balance before evaluating.
 - The app is a **compulsory** deliverable, not an afterthought, and is how the submitted
   predictions must be generated.
+- **Log boundary-crossing changes.** Three people work in mutually exclusive packages
+  ([team-split.md](.claude/memory/team-split.md)), so nobody reads anyone else's diffs. When a
+  change touches `common/`, a shared constant, a file schema, a function signature, or a cached
+  artefact under `outputs/`, append an entry to that person's log —
+  [jermaine.md](.claude/memory/jermaine.md), [jou.md](.claude/memory/jou.md),
+  [wayne.md](.claude/memory/wayne.md). Work internal to one subsystem needs no entry.
 
 ## Environment
 

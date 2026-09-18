@@ -3,6 +3,7 @@
 import pandas as pd
 
 from src.acv import config, dataset, features, predict, rank
+from src.common import config as common_config
 from src.submission import validate
 
 
@@ -38,12 +39,17 @@ def test_car_ids_keep_their_leading_zero_in_the_output():
     ]
 
 
-def test_the_submission_has_one_row_naming_the_source_file_verbatim():
+def test_the_submission_has_one_row_naming_the_source_file_verbatim(tmp_path):
     frame = predict.predict(dataset.test_case_paths())
     assert len(frame) == 1
     assert frame["file_id"].iloc[0] == "acv_test_case.xlsx"
     assert list(frame.columns) == list(config.SUBMISSION_COLUMNS)
-    validate.validate("acv", frame)
+
+    # Written out and checked as a file, with the real input folder supplied, so the
+    # validator's file_id check runs against the filenames actually on disk.
+    path = tmp_path / common_config.PREDICTION_FILENAMES["acv"]
+    frame.to_csv(path, index=False)
+    assert validate.validate(path, common_config.TEST_PATHS["acv"]) == []
 
 
 def test_a_car_with_no_usable_signal_is_ranked_last_not_dropped():

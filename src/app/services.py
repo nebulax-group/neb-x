@@ -1,0 +1,141 @@
+"""Bridge the app to the subsystem predictors; no UI, feature or model code.
+
+Every subsystem exposes one entry point, ``src.<subsystem>.predict.predict``,
+taking input paths and returning that subsystem's submission rows. Nothing here
+knows what any of them does with those files.
+
+A subsystem may also expose ``src.<subsystem>.explain.explain`` over the same
+inputs, returning panels that say how it reached those rows. That one is optional:
+a subsystem without it renders its table alone. Panels are plain dicts so the app
+can draw them without importing a subsystem, keeping the rule that the app never
+branches on which one is selected — it asks for a capability, not for a name.
+
+Each panel carries ``kind``, ``title``, an optional one-line ``caption`` and an
+optional ``subject`` naming the file it describes. ``kind`` chooses the rest:
+
+``metrics``  ``items``: ``label``, ``value`` (already formatted), ``detail``.
+``bullet``   ``rows``: ``label``, ``value``, ``detail``; plus ``target`` and
+             ``target_label`` for the threshold every row is measured against.
+``bars``     ``rows``: ``label``, ``value`` as a 0-1 share, ``detail``; plus
+             ``value_title`` for the axis.
+``line``     ``points``: parallel ``(x, y)`` lists; plus ``x_title``, ``y_title``.
+"""
+
+import importlib
+import tempfile
+from collections.abc import Callable, Iterable
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+from src.app.config import SUBSYSTEM_LABELS, UPLOAD_DIR_PREFIX
+from src.common.config import PREDICTION_FILENAMES
+
+Predictor = Callable[[list[Path]], pd.DataFrame]
+Explainer = Callable[[list[Path]], list[dict[str, Any]]]
+
+
+class SubsystemUnavailable(RuntimeError):
+    """Raised when a subsystem's predict module cannot be imported."""
+
+
+def _require_known(subsystem: str) -> None:
+    if subsystem not in SUBSYSTEM_LABELS:
+        known = ", ".join(SUBSYSTEM_LABELS)
+        raise ValueError(f"Unknown subsystem: {subsystem!r}. Expected one of {known}.")
+
+
+def _read_upload(upload: Any) -> bytes:
+    for method_name in ("getbuffer", "read"):
+        method = getattr(upload, method_name, None)
+        if callable(method):
+            return bytes(method())
+    name = getattr(upload, "name", upload)
+    raise TypeError(f"Upload {name!r} exposes neither getbuffer() nor read().")
+
+
+def load_predictor(subsystem: str) -> Predictor:
+    """Return that subsystem's ``predict`` function.
+
+    Raises ``SubsystemUnavailable`` when the module is missing or incomplete.
+    """
+    _require_known(subsystem)
+    # Imported on demand rather than at module scope: the four subsystems land
+    # at different times, so an absent or half-written one must fail only when
+    # a user picks it, never take the whole app down at startup.
+    try:
+        module = importlib.import_module(f"src.{subsystem}.predict")
+        return module.predict
+    except (ImportError, AttributeError) as exc:
+        raise SubsystemUnavailable(
+            f"The {SUBSYSTEM_LABELS[subsystem]} predictor is not available yet ({exc})."
+        ) from exc
+
+
+def is_available(subsystem: str) -> bool:
+    """Whether that subsystem's predictor imports right now."""
+    try:
+        load_predictor(subsystem)
+    except SubsystemUnavailable:
+        return False
+    return True
+
+
+def stage_uploads(uploads: Iterable[Any]) -> list[Path]:
+    """Write uploaded files into a fresh temporary directory and return them.
+
+    Upload objects are duck-typed on ``.name`` and ``.getbuffer()``/``.read()``
+    so this module never imports the UI framework.
+    """
+    uploads = list(uploads)
+    if not uploads:
+        raise ValueError("No files were uploaded.")
+
+    directory = Path(tempfile.mkdtemp(prefix=UPLOAD_DIR_PREFIX))
+    staged: list[Path] = []
+    for upload in uploads:
+        # The submitted file_id is the source filename exactly as shipped, so the
+        # name is carried through unchanged; renaming here scores that subsystem
+        # zero. Only a directory component, which a browser never sends, is dropped.
+        path = directory / Path(upload.name).name
+        path.write_bytes(_read_upload(upload))
+        staged.append(path)
+    return staged
+
+
+def run_prediction(subsystem: str, inputs: list[Path]) -> pd.DataFrame:
+    """Run one subsystem's predictor over the given files and return its rows."""
+    if not inputs:
+        raise ValueError("Select at least one input file before running a prediction.")
+    return load_predictor(subsystem)(list(inputs))
+
+
+def load_explainer(subsystem: str) -> Explainer | None:
+    """Return that subsystem's ``explain`` function, or None if it has none.
+
+    Absence is a normal answer here, unlike a missing predictor: three of the four
+    subsystems may never gain one, and the app must render their results anyway.
+    """
+    _require_known(subsystem)
+    try:
+        module = importlib.import_module(f"src.{subsystem}.explain")
+        return module.explain
+    except (ImportError, AttributeError):
+        return None
+
+
+def explain_prediction(subsystem: str, inputs: list[Path]) -> list[dict[str, Any]]:
+    """Panels explaining a prediction, or an empty list if none are offered."""
+    explainer = load_explainer(subsystem)
+    if explainer is None:
+        return []
+    if not inputs:
+        raise ValueError("Select at least one input file before running a prediction.")
+    return explainer(list(inputs))
+
+
+def prediction_filename(subsystem: str) -> str:
+    """Return the submission filename the predictions must be downloaded as."""
+    _require_known(subsystem)
+    return PREDICTION_FILENAMES[subsystem]
