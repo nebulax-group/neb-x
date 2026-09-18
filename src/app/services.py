@@ -3,6 +3,22 @@
 Every subsystem exposes one entry point, ``src.<subsystem>.predict.predict``,
 taking input paths and returning that subsystem's submission rows. Nothing here
 knows what any of them does with those files.
+
+A subsystem may also expose ``src.<subsystem>.explain.explain`` over the same
+inputs, returning panels that say how it reached those rows. That one is optional:
+a subsystem without it renders its table alone. Panels are plain dicts so the app
+can draw them without importing a subsystem, keeping the rule that the app never
+branches on which one is selected — it asks for a capability, not for a name.
+
+Each panel carries ``kind``, ``title``, an optional one-line ``caption`` and an
+optional ``subject`` naming the file it describes. ``kind`` chooses the rest:
+
+``metrics``  ``items``: ``label``, ``value`` (already formatted), ``detail``.
+``bullet``   ``rows``: ``label``, ``value``, ``detail``; plus ``target`` and
+             ``target_label`` for the threshold every row is measured against.
+``bars``     ``rows``: ``label``, ``value`` as a 0-1 share, ``detail``; plus
+             ``value_title`` for the axis.
+``line``     ``points``: parallel ``(x, y)`` lists; plus ``x_title``, ``y_title``.
 """
 
 import importlib
@@ -17,6 +33,7 @@ from src.app.config import SUBSYSTEM_LABELS, UPLOAD_DIR_PREFIX
 from src.common.config import PREDICTION_FILENAMES
 
 Predictor = Callable[[list[Path]], pd.DataFrame]
+Explainer = Callable[[list[Path]], list[dict[str, Any]]]
 
 
 class SubsystemUnavailable(RuntimeError):
@@ -92,6 +109,30 @@ def run_prediction(subsystem: str, inputs: list[Path]) -> pd.DataFrame:
     if not inputs:
         raise ValueError("Select at least one input file before running a prediction.")
     return load_predictor(subsystem)(list(inputs))
+
+
+def load_explainer(subsystem: str) -> Explainer | None:
+    """Return that subsystem's ``explain`` function, or None if it has none.
+
+    Absence is a normal answer here, unlike a missing predictor: three of the four
+    subsystems may never gain one, and the app must render their results anyway.
+    """
+    _require_known(subsystem)
+    try:
+        module = importlib.import_module(f"src.{subsystem}.explain")
+        return module.explain
+    except (ImportError, AttributeError):
+        return None
+
+
+def explain_prediction(subsystem: str, inputs: list[Path]) -> list[dict[str, Any]]:
+    """Panels explaining a prediction, or an empty list if none are offered."""
+    explainer = load_explainer(subsystem)
+    if explainer is None:
+        return []
+    if not inputs:
+        raise ValueError("Select at least one input file before running a prediction.")
+    return explainer(list(inputs))
 
 
 def prediction_filename(subsystem: str) -> str:

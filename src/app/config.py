@@ -103,3 +103,27 @@ THEME_CONFIG_COLOURS = {
     "blueBackgroundColor": "info-wash",
     "blueTextColor": "info-ink",
 }
+
+EXPLAIN_HEADING = "How this reading was reached"
+EXPLAIN_STANDFIRST = (
+    "The same numbers as above, shown as the model saw them, so the result can be "
+    "checked rather than taken on trust."
+)
+EXPLAIN_FAILED = (
+    "The prediction above is complete and ready to download; only this explanation "
+    "could not be drawn ({reason})."
+)
+
+# Rows are sized rather than the chart, so a one-file and a sixteen-file batch keep
+# identical bar thickness instead of stretching to fill a fixed height.
+CHART_ROW_HEIGHT = 30
+CHART_ROW_PADDING = 0.25
+CHART_PADDING = 24
+# Streamlit sets autosize.contains="padding", so a chart's declared height is the whole
+# SVG: padding and the x-axis come out of it. Heights below are the plotting area wanted,
+# and this is the room the axis labels plus title need on top of it.
+CHART_AXIS_ALLOWANCE = 48
+TRACE_PLOT_HEIGHT = 240
+CHART_LABEL_OFFSET = 8
+CHART_TITLE_FONT_SIZE = 12
+CHART_LABEL_FONT_SIZE = 12

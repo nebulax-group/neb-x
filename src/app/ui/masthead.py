@@ -26,7 +26,7 @@ _TEMPLATE = """<div class="nx-masthead">
 </svg>
 <div class="nx-masthead-text">
 <span class="nx-eyebrow">{eyebrow}</span>
-<span class="nx-title">{title}</span>
+<h1 class="nx-title">{title}</h1>
 </div>
 </div>
 <p class="nx-standfirst">{standfirst}</p>"""

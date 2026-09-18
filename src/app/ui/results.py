@@ -34,7 +34,7 @@ def render_results(frame: pd.DataFrame, download_name: str, subsystem_label: str
         ),
         unsafe_allow_html=True,
     )
-    st.dataframe(frame, use_container_width=True, hide_index=True)
+    st.dataframe(frame, width="stretch", hide_index=True)
     st.download_button(
         DOWNLOAD_LABEL,
         # This file is scored as-is against a fixed column list. Writing the index

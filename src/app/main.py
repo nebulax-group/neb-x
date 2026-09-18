@@ -18,7 +18,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.app import config, services  # noqa: E402
-from src.app.ui import masthead, results, theme, upload  # noqa: E402
+from src.app.ui import explain, masthead, results, theme, upload  # noqa: E402
 
 
 def main() -> None:
@@ -46,6 +46,18 @@ def main() -> None:
         return
 
     results.render_results(frame, services.prediction_filename(subsystem), label)
+
+    # Caught separately, and after the results are on screen: the prediction is the
+    # compulsory deliverable, and losing it because an optional chart failed would be
+    # the wrong trade. The failure is still stated rather than swallowed.
+    try:
+        with st.spinner(config.SPINNER_MESSAGE.format(label=label)):
+            panels = services.explain_prediction(subsystem, staged)
+    except Exception as exc:
+        st.caption(config.EXPLAIN_FAILED.format(reason=exc))
+        return
+
+    explain.render(panels)
 
 
 if __name__ == "__main__":

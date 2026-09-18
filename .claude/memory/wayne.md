@@ -57,6 +57,81 @@ would be wrong without. This applies to every file written for this project, by 
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-18 20:10 — Subsystems may now explain themselves; the app draws it generically
+
+**What.** The app gained a second, optional capability alongside `predict`. If
+`src/<sub>/explain.py` exists and exposes `explain(inputs) -> list[dict]`, the app renders those
+panels under the results table. SHM has one; the other three do not, and nothing breaks for them —
+`services.load_explainer` returns `None` and the page is exactly as it was.
+
+Six boundary-crossing points:
+
+1. **The panel contract is documented in `src/app/services.py`,** not here, so it stays next to the
+   code that consumes it. A panel is a plain dict with `kind`, `title`, optional `caption` and
+   `subject`, plus fields per kind: `metrics`, `bullet`, `bars`, `line`. The renderer
+   (`src/app/ui/explain.py`) switches on `kind` only — never on the subsystem — so rule 8 still
+   holds and neither of you has to touch the app to get charts.
+2. **If you want this for rail, door or ACV, you write one file** — `src/<sub>/explain.py` — and
+   nothing else. No app change, no `common/` change, no coordination with me. Rank confidence for
+   ACV and per-class probability for rail would both drop straight into the `bars` kind.
+3. **`src/shm/features.py` gained `cycle_damage(cycles, exponent)`,** returning the per-cycle terms
+   `damage_sum` was already adding up; `damage_sum` now calls it. Internal to SHM, noted only
+   because the SHM predictions are unchanged byte-for-byte after the refactor and I checked that
+   rather than assumed it. `src/shm/config.py` gained `TRACE_TARGET_POINTS` and
+   `CONCENTRATION_BANDS` alongside it.
+4. **`src/app/ui/results.py` and the new chart code use `width="stretch"`,** not
+   `use_container_width`, which Streamlit has deprecated past its removal date. If you add a
+   `st.dataframe` or `st.altair_chart` anywhere, use `width=`; the old spelling prints a warning
+   into the terminal during the demo recording.
+5. **Four Streamlit traps, all of which cost me a round trip.** If you add any chart, read these
+   first:
+   - **A chart's `padding` must be the four-sided object**, never a single number. Streamlit sets
+     `autosize.contains="padding"` and its wrapper then writes `padding.bottom` onto the spec,
+     which throws `Cannot create property 'bottom' on number` *in the browser only*.
+   - **A chart's `height` is the whole SVG**, not the plotting area — padding and the x-axis come
+     out of it. `src/app/config.py` has `CHART_AXIS_ALLOWANCE` for this.
+   - **In a layered chart, one `axis=None` anywhere removes that axis for every layer.** Either
+     all layers declare it or none do.
+   - **Streamlit's own CSS beats a bare class selector** (`.st-emotion-cache-x h1` is 0-1-1). Any
+     rule for `h1`-`h3` or `p` must be qualified — `.stApp h2.my-class`.
+
+   **`streamlit run` does not reliably reload imported modules.** Changes to anything under
+   `src/app/ui/` need the server restarted; I spent a cycle diagnosing a CSS fix that had in fact
+   worked but was never served.
+
+6. **Streamlit's `AppTest` does not catch any of the above.** It runs the Python half only, so a
+   spec that crashes the browser passes it silently — which is exactly how a broken chart reached
+   Wayne. Charts have to be opened in a real browser, and these were: Playwright drove the running
+   app end to end (pick SHM, upload ten files, wait for the panels) collecting console and page
+   errors, at 1440px, 768px and 390px. Final state is zero console errors, zero page errors, zero
+   `stException` blocks, and zero horizontal overflow at every width.
+
+   The masthead title also became a real `<h1>` so the new `<h2>` is not orphaned; that is what
+   exposed the CSS specificity trap above, since Streamlit then styled it.
+
+**Why.** The app was showing a bare number. `0.4406` is correct and unreadable: a judge cannot tell
+it apart from a random float, and Problem Fit scores explainability and UI while Ease of Use scores
+clarity of visuals. The panels answer "why that number" with the model's own intermediate values —
+damage against the Miner threshold of 1.0, the share of damage held by the largest cycles, and the
+stress history itself.
+
+Nothing in the panels invents a quantity the Info Kit does not define. It gives exactly one
+threshold (§1.3.1, failure at D >= 1) and names remaining-life assessment as the business need
+(§1.2), so the panels show damage against 1.0 and `(1 - D) / D` further runs, and no severity
+bands of our own.
+
+**Affects.**
+
+- **Jermaine, Jou.** Point 2 is the offer: one file each, entirely inside your own package, and the
+  app picks it up. Points 4 to 6 apply to any Streamlit call either of you adds — read them before
+  writing a chart rather than after.
+- **Both, still unresolved.** The checkpoint problem from the 19:51 entry has not moved.
+  `outputs/` is gitignored, so `outputs/models/shm/sn_curve.json` does not travel, and the demo
+  video is one take across all four subsystems on one machine. Whoever records it needs every
+  model present locally. `Optional_Items/<Subsystem>/model/` is the obvious home and the
+  problem statement already asks for trained models there. This needs a decision from the three
+  of us, not from me.
+
 ### 2026-09-18 19:51 — SHM is a real model; checkpoints live under `outputs/models/`
 
 **What:** `src/shm/` is finished — `features.py` (rainflow counting, ASTM E1049), `model.py` (the
