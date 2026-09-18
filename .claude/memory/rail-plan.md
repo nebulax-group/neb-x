@@ -470,10 +470,31 @@ nothing. Note the linear model had `C` chosen from {0.01, 0.1, 1, 10} on the sam
 against, where the booster ran at its defaults; that bias favours the linear model, which only
 strengthens the conclusion that the booster wins nothing.
 
+Nor do the booster's own hyperparameters move it. Five settings, same 50 folds, paired against the
+default:
+
+| Setting | macro F1 | paired diff | win/loss |
+|---|---|---|---|
+| `max_iter=100` (sklearn's default) | 0.759 | +0.001 ± 0.008 | 4/1 |
+| `max_leaf_nodes=8` | 0.750 | −0.008 ± 0.014 | 4/8 |
+| `learning_rate=0.05` | 0.750 | −0.008 ± 0.014 | 5/10 |
+| `l2_regularization=1.0` | 0.745 | −0.013 ± 0.023 | 14/18 |
+| `min_samples_leaf=3` | 0.742 | −0.016 ± 0.023 | 12/26 |
+
+**Nothing beats the default, in either direction — capacity up or capacity down.** Read the win/loss
+counts: they sum to far fewer than 50 because most folds score *identically*, meaning the models
+predict the same labels. `max_iter=100` ties on 45 of 50 folds outright, which says the booster has
+saturated long before its 300th tree.
+
+Two things follow. **`config.MODEL_MAX_ITER = 300` buys nothing** — 100 is the same number for a
+third of the fit time, worth taking if Phase 7 iterates a lot (not changed yet; it would make the
+CV loop ~3× faster and the accuracy is identical within ±0.008). And the search is closed: no more
+estimator tuning in Phase 8.
+
 **What this implies:** the cross-side contrast features are separable enough that a penalised linear
-model finds nearly all of it. The score lives in the features, not the estimator — so Phase 7 is the
-only lever left on the metric, and the GBM is kept for the shipped model on the strength of
-handling NaN natively rather than on accuracy.
+model finds nearly all of it, and no amount of booster capacity adds to it. The score lives in the
+features, not the estimator — so Phase 7 is the only lever left on the metric, and the GBM is kept
+for the shipped model on the strength of handling NaN natively rather than on accuracy.
 
 ### Phase 7 — Side I recall
 

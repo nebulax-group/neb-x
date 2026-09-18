@@ -16,9 +16,9 @@ ruled out — **read the one for your subsystem before writing any of its code:*
 
 - [Rail Corrugation Build Plan](rail-plan.md) — ten phases for `src/rail/`, all measured against
   the data. Phases 0–6 done; **Phase 8 next, and the order changed to 8 → 9 → 7** because nothing
-  is banked above 0.33 until a checkpoint exists. 0.758 macro F1 at 10×5, the estimator choice is a
-  measured tie, and both the per-side binary framing and smaller `min_samples_leaf` are refuted —
-  do not rebuild either.
+  is banked above 0.33 until a checkpoint exists. 0.758 macro F1 at 10×5, and **the estimator is a
+  closed question** — a linear baseline ties it and five booster hyperparameters all fail to beat
+  the default. The per-side binary framing is refuted too. All the remaining score is in features.
 
 Per-person change logs. Append an entry when a change crosses a package boundary:
 
