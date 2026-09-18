@@ -36,13 +36,15 @@ _HZ_BANDS = _edge_pairs(config.HZ_BAND_EDGES)
 _WAVELENGTH_BANDS = _edge_pairs(config.WAVELENGTH_EDGES_M)
 
 _HZ_BAND_NAMES = tuple(f"hz{low:g}_{high:g}" for low, high in _HZ_BANDS)
-_WAVELENGTH_BAND_NAMES = tuple(  # millimetres, exact for every edge we use
+WAVELENGTH_BAND_NAMES = tuple(  # millimetres, exact for every edge we use
     f"lam{round(low * 1000)}_{round(high * 1000)}" for low, high in _WAVELENGTH_BANDS
 )
 _SCALAR_NAMES = ("rms", "kurtosis", "crest", "centroid", "peak_hz")
 
-# Per axle box, in the order _quantities stacks them.
-QUANTITY_NAMES = _HZ_BAND_NAMES + _WAVELENGTH_BAND_NAMES + _SCALAR_NAMES
+# Per axle box, in the order quantities() stacks them. The wavelength names are
+# public alongside so explain.py can find those rows by name rather than by an
+# offset that a reordering here would silently invalidate.
+QUANTITY_NAMES = _HZ_BAND_NAMES + WAVELENGTH_BAND_NAMES + _SCALAR_NAMES
 
 
 def _channel_feature_names(channel: str) -> tuple[str, ...]:
@@ -68,8 +70,17 @@ FEATURE_NAMES = tuple(
 def _band_energy(
     psd: np.ndarray, frequencies: np.ndarray, low_hz: float, high_hz: float
 ) -> np.ndarray:
-    """Integrate the PSD of every box over [low_hz, high_hz)."""
+    """Integrate the PSD of every box over [low_hz, high_hz), or NaN if it is empty.
+
+    A band narrower than Welch's bin spacing catches no bin at all -- the longest
+    wavelength band does this below ~1.8 m/s. Returning zero there would claim
+    both rails measured the same thing exactly, which is a stronger statement
+    than the data supports and one only slow files can make. Same argument as the
+    stationary branch in quantities().
+    """
     inside = (frequencies >= low_hz) & (frequencies < high_hz)
+    if not inside.any():
+        return np.full(psd.shape[1], np.nan)
     resolution = frequencies[1] - frequencies[0]
     return psd[inside].sum(axis=0) * resolution
 
@@ -98,8 +109,13 @@ def _spectral_scalars(frequencies: np.ndarray, psd: np.ndarray) -> list[np.ndarr
     return [centroid, peak]
 
 
-def _quantities(signals: np.ndarray, speed_ms: float) -> np.ndarray:
-    """Every per-box quantity for one channel type: (len(QUANTITY_NAMES), 64)."""
+def quantities(signals: np.ndarray, speed_ms: float) -> np.ndarray:
+    """Every per-box quantity for one channel type: (len(QUANTITY_NAMES), 64).
+
+    Public because explain.py has to show the reader the same per-box numbers the
+    aggregates were taken over. Recomputing them there would let the explanation
+    drift away from the prediction it claims to explain.
+    """
     frequencies, psd = welch(
         signals, fs=config.SAMPLE_RATE_HZ, nperseg=config.WELCH_NPERSEG, axis=0
     )
@@ -131,9 +147,9 @@ def extract(recording: Recording) -> np.ndarray:
 
     values: list[np.ndarray] = []
     for _, signals in channels:
-        quantities = _quantities(signals, speed_ms)
+        per_box = quantities(signals, speed_ms)
         per_side = [
-            [function(quantities[:, boxes], axis=1) for _, function in _AGGREGATES]
+            [function(per_box[:, boxes], axis=1) for _, function in _AGGREGATES]
             for boxes in _SIDE_INDEX
         ]
         for aggregates in per_side:

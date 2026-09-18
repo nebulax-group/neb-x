@@ -60,6 +60,11 @@ EDGES_PER_TOOTH = 2  # the output toggles as a tooth enters and again as it leav
 # 44 training files sit here, 38 of them with no tachometer edges at all; all are Normal.
 STATIONARY_SPEED_MS = 0.5
 
+# The slowest fault file in training. 133 of 234 Normal files sit below it, so
+# "slow implies Normal" is free on more than half of Normal and never wrong --
+# scoring the subset at or above this is the figure that confound cannot flatter.
+FAST_SPEED_MS = 9.70
+
 # --- labels ----------------------------------------------------------------
 
 LABEL_COLUMNS = ("filename", "label")  # Train_Labels.csv, one row per training file
@@ -104,6 +109,30 @@ NUMERICAL_FLOOR = 1e-12
 # --- artefacts -------------------------------------------------------------
 
 FEATURE_CACHE_NAME = "features_train.npz"
+CHECKPOINT_NAME = "classifier.pkl"
+
+# The constants that change what a feature *is* without changing what it is
+# *called*. Band edges and the percentile are already in the column names; these
+# are not, so the cache and the checkpoint store this string too. Retuning the
+# Welch window and fitting on yesterday's numbers is the failure that survives
+# every check and surfaces only in the submitted CSV.
+#
+# SIDE_BOXES is in here because it is the worst of them: flipping the parity rule
+# swaps the two rails while leaving all 342 column names spelled exactly the same,
+# and telling Side I from Side II is the entire task.
+FEATURE_FINGERPRINT = "|".join(
+    str(value)
+    for value in (
+        SAMPLE_RATE_HZ,
+        WELCH_NPERSEG,
+        STATIONARY_SPEED_MS,
+        NUMERICAL_FLOOR,
+        TACHOMETER_TEETH,
+        WHEEL_DIAMETER_M,
+        EDGES_PER_TOOTH,
+        SIDE_BOXES,
+    )
+)
 
 # --- model -----------------------------------------------------------------
 
