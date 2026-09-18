@@ -1,14 +1,11 @@
-"""Turn a continuous Door stream into submission rows.
-
-Ships a constant classifier for now so a valid CSV exists before any model does;
-Task 8 replaces classify_segments with the fitted model.
-"""
+"""Turn a continuous Door stream into submission rows."""
 
 from pathlib import Path
 
+import joblib
 import pandas as pd
 
-from . import config, dataset, segment
+from . import config, dataset, features, model, segment, train
 
 
 def _single_input(inputs: list[Path]) -> Path:
@@ -22,8 +19,27 @@ def _single_input(inputs: list[Path]) -> Path:
 
 
 def classify_segments(bounds: pd.DataFrame, stream: pd.DataFrame) -> pd.Series:
-    """Constant baseline: the majority class. Replaced in Task 8."""
-    return pd.Series([config.LABEL_NORMAL] * len(bounds), index=bounds.index)
+    """Label each cycle with the fitted classifier.
+
+    The checkpoint must exist: a missing model is a setup error, not a reason to
+    silently emit the majority class into a submission.
+    """
+    path = train.checkpoint_path()
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"No Door checkpoint at {path}. Run: python -m src.door.train"
+        )
+    estimator = joblib.load(path)
+    table = features.build(stream)
+    if len(table) != len(bounds):
+        raise ValueError(
+            f"Feature rows ({len(table)}) and segment bounds ({len(bounds)}) disagree."
+        )
+    flags = estimator.predict(table[list(model.FEATURE_COLUMNS)].values)
+    labels = [
+        config.LABEL_ABNORMAL if flag else config.LABEL_NORMAL for flag in flags
+    ]
+    return pd.Series(labels, index=bounds.index)
 
 
 def predict(inputs: list[Path]) -> pd.DataFrame:
