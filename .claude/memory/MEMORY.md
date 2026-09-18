@@ -15,10 +15,11 @@ Per-subsystem build plans. The phases, what the data actually says, and what has
 ruled out — **read the one for your subsystem before writing any of its code:**
 
 - [Rail Corrugation Build Plan](rail-plan.md) — ten phases for `src/rail/`, all measured against
-  the data. Phases 0–6 done; **Phase 8 next, and the order changed to 8 → 9 → 7** because nothing
-  is banked above 0.33 until a checkpoint exists. 0.758 macro F1 at 10×5, and **the estimator is a
-  closed question** — a linear baseline ties it and five booster hyperparameters all fail to beat
-  the default. The per-side binary framing is refuted too. All the remaining score is in features.
+  the data. **Rail is shippable: 0.740 ± 0.114 macro F1 submitted, not just measured**, with the 68
+  held-out files running through the app and `explain.py` drawing why. Only Phase 7 (Side I recall)
+  is left and it is upside, not a dependency. **The estimator is a closed question** — a linear
+  baseline ties it and five booster hyperparameters all fail to beat the default — so the remaining
+  score is all in features, and nearly all of it in Side I at 0.494.
 
 Per-person change logs. Append an entry when a change crosses a package boundary:
 

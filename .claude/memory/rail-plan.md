@@ -144,8 +144,59 @@ cross the corrugated section. The median is designed to discard exactly that.
 
 ## Measured baseline
 
-Two numbers, on different feature sets. **The packaged one is current; the probe one below it is
-kept because the negative results and the noise-floor argument are quoted against it.**
+Three numbers. **The Phase 8 figure is the one to quote.** The two below it are kept because the
+per-class table, the negative results and the noise-floor argument are all stated against them.
+
+### The shipped figure — 0.740 (Phases 8–9)
+
+Everything as shipped: `features.py`'s 342 features, `model.build_classifier()`, the two duplicates
+dropped, 10×5 repeated stratified CV, seed 42.
+
+| Subset | macro F1, per fold | pooled | Normal | Side I | Side II |
+|---|---|---|---|---|---|
+| **270 files, duplicates dropped** | **0.740 ± 0.114** | 0.752 | 0.963 | **0.494** | 0.798 |
+| files ≥ 9.70 m/s (n=138) | 0.754 ± 0.116 | 0.764 | 0.934 | 0.520 | 0.838 |
+
+Before the empty-band fix below, the same run read 0.750 ± 0.114 / 0.761 on the full set, and on all
+272 files with the duplicates kept it read 0.758 ± 0.076 — reproducing Phase 6's reference **to
+three decimals on both figures**, which is what licensed reading the rest as measurements rather
+than as a new harness disagreeing with an old one.
+
+**The empty-band fix cost 0.010, and that 0.010 was the speed confound.** A wavelength band narrower
+than Welch's 2.44 Hz bin spacing used to integrate to exactly 0.0; it now returns NaN (see the Phase
+3 defect note). Three slow training files were affected. Removing it moved the full-set figure
+0.750 → 0.740 and left the fast-files-only figure **identical to three decimals in every column** —
+which is the proof that what those zeros encoded was not rail asymmetry but "this file is slow", a
+marker only Normal files could carry. We paid 0.010 of measured score to stop reading a confound as
+a physical measurement. Worth saying plainly in the write-up.
+
+**The fast-only figure is now 0.014 *above* the headline**, not merely within noise of it. The
+subset drops 132 Normal files, most of the near-silent stationary cluster among them, and the model
+does better without them. Nothing about this model is carried by the slow files.
+
+**Two different quantities, and the gap is not noise.** "Per fold" is the mean of 50 fold-level
+macro F1 scores; "pooled" scores each repeat's complete out-of-fold set once and averages the ten.
+Macro F1 is not linear in the confusion matrix, so the two do not have to agree: a fold holding 3
+Side I files reports that class as confidently as it reports its 47 Normal ones, and when it gets
+none of the 3 the fold contributes a zero that pooling never produces. **Pooled is what the
+organisers compute**, and here it reads 0.011 *higher* on the deduped set. Report the per-fold
+figure for continuity with everything on record — every comparison in this plan is differenced
+against fold scores — and the pooled figure as the expected held-out number.
+
+Mean confusion per repeat, 270 files (rows true, cols predicted):
+
+```
+Normal     226.2     2.1     3.7
+Side I       7.5     5.6     0.9
+Side II      4.0     1.0    19.0
+```
+
+**Correction to the Phase 4 per-class table: Side I is 0.494, not 0.593.** That 0.593 came from a
+single 5-fold pass, where one of 14 files changing fold moves the class by 0.07. The figures above
+average ten *complete* out-of-fold sets, so they carry ~1/√10 of that jitter. The same measurement
+on all 272 files read 0.499 against the 0.593 quoted — so Phase 4's number was optimistic by 0.09,
+which is most of what a Phase 7 idea would have to beat. **Never quote a per-class figure from one
+pass again.**
 
 ### The packaged feature set — 0.778 (Phases 1–4)
 
@@ -244,17 +295,32 @@ comparison is paired, fold difficulty differences out, and the detectable effect
 ## The speed confound
 
 Given the table above, a model *could* score respectably by learning "slow ⇒ Normal". Measurement
-says this one does not:
+says this one does not — but one feature was quietly doing it, and had to be fixed:
 
 - Adding speed as an explicit feature changes nothing: 0.682 → 0.680 on the probe.
-- Restricted to the 139 files above 9.70 m/s, where the shortcut is unavailable by construction,
-  it still reaches 0.660 on the probe and **0.765 on the packaged feature set** — within noise of
-  that set's own 0.778.
+- Restricted to the files at or above 9.70 m/s, where the shortcut is unavailable by construction,
+  it reaches 0.660 on the probe, 0.765 on the Phase 4 feature set, and **0.754 against the shipped
+  model's own 0.740**.
 
-So the discrimination is genuine, and **the fast-files-only figure is the honest one to quote**
-alongside the headline: 0.765 as of Phase 4. This belongs in the write-up explicitly: a judge who
-spots the confound unaided will otherwise assume the worst. Methodological soundness is graded
-alongside the metric.
+**The fast-only figure is now above the headline, not merely within noise of it**, and Side I and
+Side II both score higher there than on the full set. The subset removes 132 Normal files including
+the near-silent stationary cluster, which was the part of Normal that came free. The shortcut is not
+carrying the model; it was diluting it.
+
+**One feature was encoding speed, and removing it cost 0.010.** The empty-wavelength-band bug under
+Phase 3 gave three slow files a contrast of exactly 0.0 — a value no fault file could produce, since
+every fault file is fast enough to resolve the band. That is the confound reappearing *inside* a
+feature that claims to measure rail asymmetry. It is fixed, the fast-only figure did not move by a
+thousandth in any column, and the full-set figure dropped by exactly the amount the confound was
+worth. **That pair of facts is the single best piece of evidence we have that the rest of the score
+is real**, and it belongs in the write-up.
+
+The fast-only figure stays the one to quote alongside the headline, and that belongs in the write-up
+explicitly: a judge who spots the confound unaided will otherwise assume the worst. Methodological
+soundness is graded alongside the metric.
+
+`config.FAST_SPEED_MS` owns the 9.70 threshold and `train.py` reports the subset on every run, so
+this cannot quietly stop being checked.
 
 ## Files, and the one thing each does
 
@@ -267,20 +333,24 @@ Nothing outside this list gets created.
 | `src/rail/speed.py` | tachometer square wave → m/s. Nothing else. | no | ✓ |
 | `src/rail/features.py` | arrays → fixed-length feature vector. No IO, no model. | no | ✓ |
 | `src/rail/model.py` | the estimator and its hyperparameters. | no | ✓ |
-| `src/rail/train.py` | CV, fit, write checkpoint and feature cache | writes `outputs/` | ~ extraction only |
-| `src/rail/predict.py` | `predict(inputs) -> DataFrame` | writes `outputs/` | ~ fallback only |
-| `src/app/ui/rail.py` | the rail view | no | ✗ |
+| `src/rail/train.py` | CV, fit, write checkpoint and feature cache | writes `outputs/` | ✓ |
+| `src/rail/predict.py` | `predict(inputs: list[Path]) -> DataFrame` | writes `outputs/` | ✓ |
+| `src/rail/explain.py` | the same run as panels the app draws. No IO beyond reading its inputs. | no | ✓ |
 
 `common/config.py` already owns the paths (`TRAIN_PATHS`, `TEST_PATHS`, `LABEL_PATHS`,
 `MODEL_DIRS`, `PREDICTION_PATHS`) and `RANDOM_SEED`; `common/io.py` already owns `read_table` and
 `list_data_files`. Nothing here restates any of them ([[project-structure]] rules 4 and 5).
 
-`subsystem.py` is cut — the integration contract is one function, `predict(inputs) -> DataFrame`
-([[team-split]]).
+`subsystem.py` is cut. The integration contract is two functions, both found by `importlib` from
+`src/app/services.py` and neither registered anywhere: `predict.predict(inputs: list[Path]) ->
+DataFrame`, which is required, and `explain.explain(inputs: list[Path]) -> list[dict]`, which is
+optional and returns `metrics` / `bullet` / `bars` / `line` panels the app draws without importing
+rail. **`src/app/ui/rail.py` is not part of this and must never be written** — the app does not have
+per-subsystem view files any more.
 
 ## The phases
 
-Status as of 2026-09-18. **Phase 8 is next — the order changed, see below.**
+Status as of 2026-09-18. **Phase 7 is the only one left, and it is upside, not a dependency.**
 
 | | Phase | State |
 |---|---|---|
@@ -291,27 +361,29 @@ Status as of 2026-09-18. **Phase 8 is next — the order changed, see below.**
 | 4 | Extract all, cache once | **done** — `train.py`, 790 KB cache, 0.003 s reload |
 | 5 | Leakage check | **done** — split is sound, 2 duplicates to drop at fit time |
 | 6 | Model | **done** — `model.py`, 0.758 at 10×5; estimator choice is a tie |
-| 8 | Train and tune | **next** — nothing is banked above 0.33 until this exists |
-| 9 | Real predict, app view | then this — the definition of done |
-| 7 | Side I recall | **last** — upside, and only once 8 and 9 are safe |
+| 8 | Train and tune | **done** — 0.740 ± 0.114 honest, checkpoint on disk |
+| 9 | Real predict, app view | **done** — 68 rows through the app, `explain.py` panels |
+| 7 | Side I recall | **next, and last** — the only lever left on the metric |
 
-### Run 8 and 9 before 7
+**Rail is shippable as it stands.** 0.740 is submitted rather than measured, the app renders it, and
+the remaining work is optional. What is *not* done and is not rail's to do: `src/submission/`
+(shared end-work — `validate.py` and the flat zip) and the demo video.
 
-The plan originally ordered these 7 → 8 → 9. **Do 8 → 9 → 7 instead.**
+### Why 8 and 9 ran before 7 — closed, and it paid for itself
 
-The 0.758 is measured but **not banked**. `predict.py` still returns constant `Normal`, no
-checkpoint exists on disk, and nothing has run through the app. If the deadline arrived today rail
-would score **0.33**, not 0.758. Phases 8 and 9 convert the measured number into a submitted one —
-worth about **+0.42** — where Phase 7 is upside on top, plausibly +0.05 and possibly smaller than
-what the paired test can resolve.
+The plan originally ordered these 7 → 8 → 9 and was reordered to 8 → 9 → 7, on the argument that
+0.758 was measured but **not banked**: `predict.py` returned constant `Normal`, no checkpoint
+existed, and rail would have scored 0.33 if the deadline had arrived. Converting a measured number
+into a submitted one was worth ~+0.42 where Phase 7 is upside worth perhaps +0.05.
 
-This is the plan's own standing constraint applied earlier than it expected: *ship the Phase 6
-baseline and stop, Phase 7 is upside, not a dependency.* It assumed Phase 7 would be cheap enough to
-take first. Phase 6's finding that the estimator is irrelevant removes the other reason to delay —
-there is nothing left to tune before fitting.
+**The reorder earned more than that.** Phase 9 turned up an integration bug that would have taken
+rail to **zero** in the app — `predict` took a folder path where `services.run_prediction` passes a
+`list[Path]`, which `list_data_files` raises on. It surfaced only because the phase ran early and
+against Wayne's real `services.py` rather than against rail's own `main()`. Had Phase 7 gone first,
+that bug would have been sitting underneath a better model instead of a shipped one.
 
-**Phase 9 depends on Wayne's app shell.** If it does not exist yet, `predict.py`'s model path still
-stands alone and `src/app/ui/rail.py` follows when the shell lands.
+**The lesson generalises, and it is the one worth carrying into Phase 7:** a subsystem is not
+verified by its own entry point. Run it through the caller that will actually call it.
 
 ### Phase 0 — Bank the floor — DONE
 
@@ -385,6 +457,19 @@ Two decisions the spec left open:
   in Phase 6 will need an imputer for those 126 columns.
 - **Kurtosis is the Pearson form, not the excess form.** Every per-box quantity has to stay
   positive to survive the log in the cross-side contrast, and excess kurtosis goes negative.
+
+**Defect found and fixed 2026-09-18 (Phase 9), and the impact was not nil.** The NaN rule above
+originally fired only below `STATIONARY_SPEED_MS`. A wavelength band narrower than Welch's 2.44 Hz
+bin spacing catches no bin at all and integrated to **exactly 0.0**, which the contrast read as
+log(0)−log(0) = 0: "the two sides measured identical", the precise claim the NaN decision exists to
+avoid. The 0.30–0.50 m band is unresolvable below ~1.83 m/s, and exactly 3 training files
+(`Train51`, `Train52`, `Train118`, at 1.29–1.34 m/s) carried it.
+
+`_band_energy` now returns NaN for an empty band, on the same argument as the stationary branch.
+The first estimate — "3 slow Normal files, impact nil" — was **wrong**: the fix cost 0.010 of macro
+F1, because an exactly-zero contrast was a marker no fault file could ever carry. See **The shipped
+figure**. Verified after the fix: those 3 files read NaN in all 64 boxes of that band and no file
+reads an exact zero, while files at 1.68–1.91 m/s still resolve it normally.
 
 **Original spec:** pure, recording in, `np.ndarray` out. Welch with **`nperseg ≥ 4096`**, then:
 
@@ -496,65 +581,150 @@ model finds nearly all of it, and no amount of booster capacity adds to it. The 
 features, not the estimator — so Phase 7 is the only lever left on the metric, and the GBM is kept
 for the shipped model on the strength of handling NaN natively rather than on accuracy.
 
-### Phase 7 — Side I recall
+**Caveat for the write-up: every row of both tables was measured ad hoc.** `build_linear_baseline`
+has no caller in the package and `train.py` runs one estimator only, so nothing here re-runs from a
+command. That is a deliberate consequence of the search being closed — a permanent comparison path
+would be dead code for a question nobody is reopening — but "model comparison/benchmarking" is a
+Problem Fit line item, so the numbers have to be quoted from here rather than demonstrated.
 
-**Write:** additions to `features.py`.
+### Phase 7 — Side I recall — NEXT, and the only phase left
 
-Still where the remaining score is, though less of it than when this plan was written. Normal is at
-0.973 and Side II at 0.818; **Side I at 0.593** is 0.22 behind Side II, worth ~0.07 of the metric,
-with 6 of its 14 files still called Normal. Untried ideas, cheapest first:
+**Write:** additions to `features.py`. Nothing else needs to change: `train.py` re-extracts, scores
+and refits from one command, and `predict.py` and `explain.py` pick up any new column automatically
+because both check `FEATURE_NAMES` rather than a fixed width.
+
+Still where the remaining score is, and the honest measurement puts **more** of it here than Phase 4
+thought. Normal is at 0.963 and Side II at 0.798; **Side I at 0.494** is 0.30 behind Side II, worth
+~0.10 of the metric, with 7.5 of its 14 files called Normal on an average repeat. Untried ideas,
+cheapest first:
 
 1. **A finer order spectrum** — the baseline integrates over 7 coarse λ bands, which smears a
    narrow corrugation peak. A proper order spectrum resampled onto a dense λ grid should isolate it.
+   `explain.py::_spectrum` already builds exactly this curve for the app, at ~250–360 points per
+   file; it is drawn but never featurised, so the cheapest version of this idea is to summarise that
+   curve rather than write anything new.
 2. **Harmonic structure at the passing frequency** — corrugation is periodic, so it should excite
    harmonics of `v/λ`. The current band energies integrate across them rather than exploiting the
    pattern.
 3. **Envelope spectrum** — standard practice for modulated rolling-contact faults.
 4. **Top-k boxes rather than the max alone** — max works, so the k next-largest may carry more.
 
+#### How to run a candidate
+
+Everything needed exists; do not rebuild any of it.
+
+```python
+from src.rail import train
+training = train.training_set(refresh=True)      # refresh: features.py changed
+result = train.cross_validate(training.matrix, training.labels)
+result.fold_scores        # (50,) -- difference THESE against the baseline's, per fold
+result.macro_f1, result.pooled_macro_f1, result.class_f1.mean(axis=0)
+```
+
+- **`refresh=True` is mandatory after editing `features.py`.** Forgetting it no longer silently
+  fits stale numbers — `config.FEATURE_FINGERPRINT` and the column names make the cache refuse — but
+  the error costs a run either way.
+- **Difference `fold_scores` per fold against the baseline's, then take the mean and 95% interval of
+  the differences.** Never compare two `mean ± sd` figures: the marginal spread is ±0.114 and the
+  paired test resolves ±0.03. Report the win/loss count beside it. See **The noise floor**.
+- The baseline to beat, same folds and seed: **0.740 ± 0.114 per fold, 0.752 pooled, Side I 0.494**.
+- One full cycle is ~400 s including re-extraction. If that becomes the bottleneck, set
+  `MODEL_MAX_ITER = 100` first — measured tie, ~3× faster (**Model comparison**).
+- Check the fast-files-only figure moved too, not just the headline. A gain that appears only on the
+  full set is a gain on slow Normal files, which is how the empty-band bug read as +0.010 for months.
+
 **Done when:** Side I F1 has moved materially, or the ideas are exhausted and the result recorded
-here. Parity with Side II would put macro F1 near 0.87. Note the bar has risen with the baseline:
-against a ±0.07 spread, only a large move is readable, so compare on 10×5 fixed folds.
+here. Parity with Side II would put macro F1 near 0.86. **Rail ships either way** — if a candidate
+does not clear the paired test, revert `features.py`, re-run `train` and `predict`, and stop.
 
-### Phase 8 — Train and tune against macro F1
+### Phase 8 — Train and tune against macro F1 — DONE
 
-**Write:** the rest of `train.py`. Phases 1–6 leave it holding only `extract_features`,
-`training_features` and a `main()` that rebuilds the cache; everything below is new.
+Done 2026-09-18. Written: the rest of `train.py` — `TrainingSet`, `CrossValidation`,
+`training_set`, `cross_validate`, `fit_checkpoint`, `save_checkpoint`, and a `main(refresh)` that
+prints the whole report. Plus `config.CHECKPOINT_NAME` and `config.FAST_SPEED_MS`.
 
-Starting state, so none of it is re-derived: the cache is 272×342 at
-`outputs/models/rail/features_train.npz`, `model.build_classifier()` is the estimator,
-`dataset.load_labels()` joins to the cached `files` vector, and the number to beat is **0.758 ±
-0.076 at 10×5, seed 42**.
+**The honest number is 0.740 ± 0.114** at 10×5 on the 270 files that remain after the duplicates go,
+seed 42; fast-files-only 0.754 ± 0.116; the full table and the confusion matrix are under
+**Measured baseline**. Phase 8 first measured 0.750 here and Phase 9's empty-band fix took 0.010 off
+it — see **The speed confound** for why that subtraction is the good news it sounds like it is not.
+`python -m src.rail.train` runs the lot in ~400 s including an 80 s re-extraction, or ~260 s off
+the cache.
 
-- **Repeated stratified k-fold, 10×5** — the plan said 5×5, but 5×5 read 0.778 for the same model
-  and settings that 10×5 reads 0.758. Quote the 10×5 figure.
-- **Drop `Train115.csv` and `Train187.csv` here**, at fit time — Phase 5's outstanding action. The
-  cache deliberately keeps them.
-- Score macro F1 directly. Never accuracy.
-- Any threshold or decision rule is tuned on **out-of-fold** scores — and note that a threshold
-  chosen on the same OOF scores it is then reported against is optimistic by roughly 0.04 here,
-  measured. Quote the honest number.
-- Report the fast-files-only figure alongside the headline, per **The speed confound**.
-- Save the checkpoint, the fitted scaler, and the feature column names, so `predict.py` can assert
-  the column order matches what was trained on.
+**Verified at the time, before Phase 9's empty-band fix:** the same harness read **0.758 ± 0.076** on
+all 272 files, reproducing Phase 6's reference figure exactly, so the deduped 0.750 was a real 0.008
+cost and not a harness difference. The speed table under **Verified data facts** reproduces from the
+cached vector exactly, all 342 column names round-trip through the checkpoint, and the refitted
+estimator predicts 234/14/24 on its own training matrix.
 
-**Done when:** an honest out-of-fold macro F1 with its spread, and a checkpoint on disk.
+Five decisions the spec left open:
 
-### Phase 9 — Real predict, then the app view
+- **Per-class figures come from each repeat's complete out-of-fold set, averaged over the ten
+  repeats** — not from one 5-fold pass. This is what exposed Phase 4's Side I 0.593 as optimistic by
+  0.09. A single pass on 14 files reports mostly fold assignment.
+- **Both the per-fold mean and the pooled figure are reported**, because they are different
+  quantities and only the pooled one is what gets graded — see **Measured baseline**.
+- **No threshold or decision rule was added.** Plain 3-class argmax. One tuned on the OOF scores it
+  is then reported against is optimistic by ~0.04 here, and the estimator search is closed
+  (**Model comparison**), so there was nothing left to tune that would not have been self-flattery.
+- **No scaler is saved, because the shipped model has none.** The spec asked for one; the booster is
+  scale-invariant across band energies spanning decades and takes the undefined wavelength features
+  as NaN natively. Saving an unused scaler would imply `predict.py` must apply one.
+- **The checkpoint is stdlib `pickle`, not joblib.** joblib is only a transitive sklearn dependency
+  and is not pinned in `requirements.txt`; depending on it directly would be an unpinned dependency
+  on all three machines for no gain on a 300-tree model.
 
-**Write:** `predict.py` (model path), `src/app/ui/rail.py`.
+**The cache gained a `speeds` vector and a `fingerprint` string**, and older caches now raise rather
+than load — see [[jermaine]]. Speed is there because the fast-files-only figure otherwise costs a
+40 s re-read of every CSV, which is how a standing check quietly stops being run. The fingerprint is
+there because Phase 4's staleness check compared only `FEATURE_NAMES`, and `WELCH_NPERSEG`,
+`STATIONARY_SPEED_MS` and the wheel geometry all change what a feature *is* without changing what it
+is *called*. That was harmless while `main()` forced a rebuild every run and became a live trap the
+moment it stopped.
 
-`predict()` loads the checkpoint, asserts feature-column order, and falls back to Phase 0's
-constant `Normal` when no checkpoint exists. `file_id` is `path.name`, always — never reconstructed
-with an f-string. The held-out names are `Test1.csv` … `Test68.csv`: capital T, **not**
-zero-padded. Any `.lower()` or rebuilt name and §5.1 gives rail no score at all.
+One lever left unpulled, deliberately: `MODEL_MAX_ITER = 300` against sklearn's 100 is a measured
+tie (+0.001 ± 0.008, identical on 45 of 50 folds) and costs ~3× the CV time. **If Phase 7 iterates,
+drop it to 100 first** — that turns a four-minute loop into ninety seconds.
 
-The view shows the prediction alongside **why** — the per-side band-energy contrast that drove the
-call, and which axle boxes were the extreme ones, since the fault is localised. That is the
-explainability line in Problem Fit, and it films well for the demo video.
+### Phase 9 — Real predict, then the app view — DONE
 
-**Done when:** the 68 test files run *through the app*, not a notebook, and the CSV passes
-`validate.py`. That is the definition of done for the subsystem ([[team-split]]).
+Done 2026-09-18. Written: `predict.py`'s model path and **`src/rail/explain.py`**. `features.py`
+gained two public names for it, `quantities` and `WAVELENGTH_BAND_NAMES` — see [[jermaine]].
+
+**Verified:** all 68 held-out files run through Wayne's own `src/app/services.py` — not through
+rail's `main()` — returning 68 rows whose `file_id`s are the shipped names verbatim, with columns
+matching `reference/submission_format/`, no duplicates and no label outside the vocabulary. 60
+Normal / 5 Side I / 3 Side II. The explanation panels round-trip as plain JSON, the bar shares sum
+to 1.0, and both Altair specs compile. `src/submission/validate.py` is shared end-work and does not
+exist yet, so those checks were run by hand against the reference CSV.
+
+**One check worth keeping: every one of the 8 fault calls sits above 9.70 m/s**, the slowest fault
+in training, so the model is not extrapolating past its own evidence. The test set's speed
+distribution is close to training's — median 11.13 m/s, 9 stationary files, 43 of 68 above the fast
+threshold against 51% in training — which partly answers the open question below.
+
+Three decisions the spec left open, and one thing it got wrong:
+
+- **`src/app/ui/rail.py` was never written, and should not be.** Wayne made explainability a
+  *generic* app capability: a subsystem optionally exposes `src/<sub>/explain.py::explain(inputs)`
+  returning `metrics` / `bullet` / `bars` / `line` panels as plain dicts, and `src/app/ui/explain.py`
+  draws them without importing any subsystem. Rail supplies panels, not a view. The file table above
+  is updated.
+- **`predict` takes `list[Path]`, not a folder path.** The Phase 0 signature was `str | Path` and
+  fed `list_data_files`; the app passes a list of staged upload paths, which would have raised on
+  the first click. [[team-split]] documented `list[Path]` all along — this was rail not matching it.
+- **Rail keeps its constant-`Normal` fallback where SHM deliberately refuses one.** A label from a
+  three-way vocabulary is a real 0.33 baseline; SHM's would be a fabricated number. Both `main()`
+  and the first explanation panel say out loud when it fires, so it cannot pass for a result.
+- **Two panel captions claimed more than the data supports and were rewritten.** They said
+  concentrated per-car energy indicates a defect and that healthy rails track the centre line;
+  `Test11` is called Normal with 49% of its energy in one car and a −1.35 log-ratio excursion.
+  Concentration points an inspector at a stretch of track and decides nothing on its own.
+
+The three panels: the call with the model's own probability and the train speed; the cross-side log
+ratio against ripple wavelength drawn whole, rather than in the seven bands the features bin it
+into; and each car's share of the implicated rail's energy in the band that most implicates it.
+Everything comes from `features.quantities`, the same per-box function the feature vector is built
+from, so the explanation cannot drift from the prediction it explains.
 
 ## Negative results
 
@@ -639,8 +809,7 @@ finding the estimator irrelevant. Treat it as a hypothesis, not a result.
   Phase 7 work will chase noise.
 - Nothing in Phases 0–9 touches `common/`, so no [[jermaine]] log entry is needed unless that
   changes.
-- The floor is banked at 0.33 in Phase 0 and the packaged feature set reaches **0.778** as of
-  Phase 4. If rail is still fighting back late, ship the Phase 6 baseline and stop — Phase 7 is
-  upside, not a dependency.
+- The floor is banked at 0.33 in Phase 0 and the fitted model measures **0.740**, submitted through
+  the app. Phase 7 is upside, not a dependency — rail can be left exactly as it is.
 
 See also: [[team-split]], [[project-structure]], [[problem-statment]], [[jermaine]].
