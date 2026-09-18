@@ -79,13 +79,10 @@ the choice was not *driven* by it, but this is not a blind holdout and should no
 
 **ACV fits no parameters, so it cannot overfit them — but n=5 is n=5.** The method is a fixed
 physical formula with zero learned coefficients. The exposure is *specification* bias: the signal
-was chosen after seeing it work on five cases. Mitigating it, only two signals were ever tried
-(cabin-temperature mean, and delta-to-setpoint) and both worked, so the search was shallow. Still,
-5/5 on five cases cannot separate "reliably right" from "lucky", and the held-out margin (0.166) is
-thinner than every training margin (0.47–1.13). **The bootstrap is the reason to be confident here,
-not the 5/5.**
-
-See also: [[jouyuan]], [[problem-statment]], [[bench-notes-artifact]].
+was chosen after seeing it work on five cases. 5/5 on five cases cannot separate "reliably right"
+from "lucky" on its own, and the held-out margin (0.166) is thinner than every training margin
+(0.47–1.13). **The bootstrap and the specification-bias check below are the reasons to be confident
+here, not the 5/5.**
 
 ## Robustness to specification bias - the strongest ACV evidence
 
@@ -120,3 +117,5 @@ What Door has instead: the two streams align almost exactly once normalised - no
 at 1.068 (train) against 1.067 (test), abnormal ranges overlap (1.135-1.722 against 1.199-1.373),
 and the abnormal rate is 27% against 21%. A transfer failure would show as a shifted ceiling. It
 does not.
+
+See also: [[jouyuan]], [[problem-statment]], [[bench-notes-artifact]].
