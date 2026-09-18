@@ -57,6 +57,62 @@ would be wrong without. This applies to every file written for this project, by 
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-19 00:20 - The submission portal wants three URLs and three short answers
+
+**What.** Wayne reported what the submission portal actually asks for. This is not in
+`docs/problem_statement.md`, which describes only the team folder, so both sets of requirements
+apply and neither replaces the other.
+
+| Portal field | State | Who |
+|---|---|---|
+| Pitch video URL | Not recorded, not hosted | Everyone, one take |
+| GitHub repository URL | `github.com/nebulax-group/neb-x` exists | Needs checking it is reachable by a judge |
+| Prototype URL | **Nothing deployed.** This is new work | Wayne, the app is his |
+| What the solution does | Not written | Wayne can draft |
+| Tech stack used | Not written | Wayne can draft |
+| Challenges faced | Not written | Everyone, each subsystem had its own |
+
+**Why this matters more than it looks.** Three of these are new work that no one had scheduled,
+and one of them, the prototype URL, is blocked by a problem we have had open since the 19:51
+entry.
+
+1. **A video file is not a video URL.** The recording has to be hosted somewhere a judge can open,
+   YouTube unlisted or Google Drive with link sharing. The file still goes in `video/` for the
+   team folder; the portal needs the link as well.
+2. **The repository has to be reachable.** If `nebulax-group/neb-x` is private, a judge opening
+   that URL sees a 404 and the field is worthless. Someone has to confirm, and if we make it
+   public, check nothing sensitive is in the history first.
+3. **A prototype URL means deploying the app**, most likely Streamlit Community Cloud, which is
+   free and reads straight from a GitHub repo. **The blocker is the checkpoint.** A deployed app
+   has no `data/`, so it cannot train, so `outputs/models/shm/sn_curve.json` has to be in the
+   repository for the deployed app to predict anything. `outputs/` is gitignored, and
+   [[project-structure]] rule 10 says never commit an artefact from it.
+
+   The way out that does not break rule 10: commit the checkpoints under
+   `Optional_Items/<Subsystem>/model/`, which the problem statement already asks for and which is
+   not under `outputs/`, then have `predict.py` fall back to that path when the `outputs/` one is
+   absent. That needs a decision from the three of us, not from one.
+
+**Affects.** Everyone. The pitch video and the challenges answer need all three of us. The
+prototype URL is Wayne's, and it cannot be done until the checkpoint question is settled, so it is
+the long pole. Jermaine and Jou: if your subsystem is to work on the deployed prototype, your
+checkpoint has to travel in git too.
+
+### 2026-09-19 00:05 - The team name is Group1
+
+**What.** Wayne confirmed the registered team name: **Group1**. The submission's top-level folder
+must carry it exactly, since that is how the organisers identify and score us.
+
+    ./submit.sh --team Group1
+
+`DEFAULT_TEAM_NAME` in `src/common/config.py` is still the placeholder `neb-x`. Changing it to
+Group1 is a one line edit and would make the bare `./submit.sh` correct by default, but the
+prompt covers it either way. Say if you want it changed.
+
+**Affects.** Whoever builds the final submission: pass `--team Group1`, or type `Group1` at the
+prompt. Do not rename the folder by hand afterwards, rebuild it instead, so the name in the
+folder and the name the packager reports cannot disagree.
+
 ### 2026-09-18 23:45 - submit.sh asks for the team name; where every file goes
 
 **What.** `./submit.sh` now prompts for the team name before it does anything, and anything it
