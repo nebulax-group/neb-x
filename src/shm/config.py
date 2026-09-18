@@ -54,3 +54,18 @@ MODEL_EXPONENT_KEY = "exponent"
 MODEL_COEFFICIENT_KEY = "coefficient"
 CHECKPOINT_FILENAME = "sn_curve.json"
 CHECKPOINT_PATH = MODEL_DIRS[SUBSYSTEM_KEY] / CHECKPOINT_FILENAME
+
+# Explainability dimensions. The stress trace is drawn as a min/max envelope over
+# this many points: a 581,120-sample history cannot be sent to a browser whole, and
+# plain stride sampling would drop the peaks, which in a fatigue tool are the only
+# samples that matter.
+TRACE_TARGET_POINTS = 1200
+
+# Disjoint slices of the cycles, largest damage first, so the shares sum to 100%.
+# Overlapping "top 1% / top 10%" bands read as contradictory to anyone who adds them up.
+CONCENTRATION_BANDS = (
+    (0.001, "Largest 0.1%"),
+    (0.01, "Next 0.9%"),
+    (0.10, "Next 9%"),
+    (1.0, "Smallest 90%"),
+)

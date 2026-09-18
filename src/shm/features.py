@@ -95,6 +95,25 @@ def extract_cycles(series: np.ndarray) -> np.ndarray:
     return np.array(cycles, dtype=float)
 
 
+def cycle_damage(cycles: np.ndarray, exponent: float) -> np.ndarray:
+    """Each cycle's own n_i * sigma_i^m, in the order the cycles were counted.
+
+    Separate from ``damage_sum`` because the total hides what produced it. Raising
+    amplitude to a power near five spreads these terms over many orders of
+    magnitude, so a handful of cycles account for almost all of a file's damage,
+    and being able to point at them is the difference between a number and an
+    explanation.
+    """
+    if exponent <= 0:
+        raise ValueError(f"S-N exponent must be positive, got {exponent}.")
+    if cycles.size == 0:
+        return np.empty(0, dtype=float)
+    if cycles.ndim != 2 or cycles.shape[1] != CYCLE_COLUMNS:
+        raise ValueError(f"Expected cycles with {CYCLE_COLUMNS} columns, got {cycles.shape}.")
+
+    return cycles[:, CYCLE_COUNT] * cycles[:, CYCLE_AMPLITUDE] ** exponent
+
+
 def damage_sum(cycles: np.ndarray, exponent: float) -> float:
     """Sum of n_i * sigma_i^m over the cycles — Miner's rule with C left out.
 
@@ -102,13 +121,4 @@ def damage_sum(cycles: np.ndarray, exponent: float) -> float:
     ``D = damage_sum(cycles, m) / C``. Dividing by C is the model's job; this
     value depends only on the data and the exponent.
     """
-    if exponent <= 0:
-        raise ValueError(f"S-N exponent must be positive, got {exponent}.")
-    if cycles.size == 0:
-        return 0.0
-    if cycles.ndim != 2 or cycles.shape[1] != CYCLE_COLUMNS:
-        raise ValueError(f"Expected cycles with {CYCLE_COLUMNS} columns, got {cycles.shape}.")
-
-    amplitudes = cycles[:, CYCLE_AMPLITUDE]
-    counts = cycles[:, CYCLE_COUNT]
-    return float(np.sum(counts * amplitudes**exponent))
+    return float(cycle_damage(cycles, exponent).sum())
