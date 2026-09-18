@@ -85,7 +85,7 @@ Mutually exclusive by package — nobody edits the same file:
 
 | A | B | C |
 |---|---|---|
-| `src/rail/` | `common/metrics.py`, then `src/door/`, then `src/acv/` | app shell, then `src/shm/`, then `src/submission/` |
+| `src/rail/` | `common/metrics.py`, then `src/door/`, then `src/acv/` | app shell, then `src/shm/` |
 | ~15h | ~14.5h | ~13.5h |
 
 **A is deliberately heaviest.** Rail is 5.6 GB and the only subsystem that cannot be rushed, but
@@ -99,14 +99,21 @@ collision.
 **C's front-load shrank.** `config.py` and `io.py` were the bulk of it, so C reaches SHM sooner.
 Spend the slack on the app shell being decent rather than minimal.
 
-## Converge at the end
+## Converge at the end — everyone
 
-The app's four views are the shared end-work, and they are *also* mutually exclusive —
-`src/app/ui/` is one file per component. A writes the rail view, B writes door and acv, C writes
-shm. Then packaging, then video: one take, ≤3 min, all four subsystems.
+The app and the submission are the combined end-work. Both still divide along the same
+mutually-exclusive lines, so converging does not mean three people in one file:
 
-**Definition of done:** nobody declares a subsystem finished until it runs *through the app*. Not
-the notebook — the app. That is what the early shell buys.
+| Shared task | How it divides |
+|---|---|
+| App views | `src/app/ui/` is one file per component — A writes rail, B writes door and acv, C writes shm |
+| `src/submission/` | Written together: `validate.py` checks a CSV against `reference/submission_format/`, `package.py` zips flat |
+| **The submission run** | **Each person runs their own subsystem's test files through the app and validates their own CSV** — the person who knows the schema is the person who checks it |
+| `predictions.zip` | One person zips, once all four CSVs are validated |
+| Demo video | One take, ≤3 min, all four subsystems |
+
+**Definition of done:** nobody declares a subsystem finished until it runs *through the app* and
+its CSV passes `validate.py`. Not the notebook — the app. That is what the early shell buys.
 
 ## Two rules that save the run
 
