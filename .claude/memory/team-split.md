@@ -37,12 +37,12 @@ but never assume numeric order.
 
 ## Blocking — clear these first
 
-1. **App shell + the function signature.** The integration contract. ~3h, C.
+1. **App shell + the function signature.** The integration contract. ~3h, **Wayne**.
 2. **`common/metrics.py`** — the four official formulas. Nobody can tune against a real number
-   until it exists. ~1.5h, B, who owns the two odd metrics anyway (Door's IoU-weighted F1 and
-   ACV's rank-decay; macro-F1 and MAPE are near one-liners).
+   until it exists. ~1.5h, **Jou**, who owns the two odd metrics anyway (Door's IoU-weighted F1
+   and ACV's rank-decay; macro-F1 and MAPE are near one-liners).
 
-A starts rail extraction immediately — it depends on neither.
+**Jermaine** starts rail extraction immediately — it depends on neither.
 
 Skip `interface.py` and the registry protocol at this scale. The contract is one function:
 
@@ -82,22 +82,29 @@ Everything after is improvement on a banked position.
 
 Mutually exclusive by package — nobody edits the same file:
 
-| A | B | C |
+| Jermaine (A) | Jou (B) | Wayne (C) |
 |---|---|---|
 | `src/rail/` | `common/metrics.py`, then `src/door/`, then `src/acv/` | app shell, then `src/shm/`, then both upgrades below |
 | ~16h | ~16h | ~16h |
 
-**A is deliberately heaviest.** Rail is 5.6 GB and the only subsystem that cannot be rushed, but
-it is also the worst value per hour — ~14h to reach maybe 0.5–0.7 macro-F1, where Door reaches
-~0.85 in five.
+**Because nobody reads anyone else's diffs, boundary crossings get announced.** When a change
+touches something outside your own package — `common/`, a shared constant, a file schema, a
+function signature, a cached artefact under `outputs/` — append an entry to your own log:
+[[jermaine]], [[jou]], [[wayne]]. Work internal to one subsystem needs no entry. This is the only
+coordination overhead in the plan; skipping it is how two people end up disagreeing about a column
+name at hour twenty.
 
-**Reinforcement:** B finishes both subsystems first — Door and ACV are genuinely fast now — and
-then joins A on rail model and CV while A keeps extraction and features. Different files, so no
-collision.
+**Jermaine is deliberately heaviest.** Rail is 5.6 GB and the only subsystem that cannot be
+rushed, but it is also the worst value per hour — ~14h to reach maybe 0.5–0.7 macro-F1, where Door
+reaches ~0.85 in five.
 
-**C's two upgrades.** `config.py` and `io.py` were already done and `src/submission/` is shared
-end-work, so C's column is otherwise light. Fill it with the two things this plan was
-under-weighting — both *upgrades on a banked baseline*, so if C runs out of time the submission is
+**Reinforcement:** Jou finishes both subsystems first — Door and ACV are genuinely fast now — and
+then joins Jermaine on rail model and CV while Jermaine keeps extraction and features. Different
+files, so no collision.
+
+**Wayne's two upgrades.** `config.py` and `io.py` were already done and `src/submission/` is shared
+end-work, so Wayne's column is otherwise light. Fill it with the two things this plan was
+under-weighting — both *upgrades on a banked baseline*, so if Wayne runs out of time the submission is
 unaffected:
 
 1. **SHM properly, via rainflow (+3h).** Bank the cheap version first — stats features (RMS,
@@ -123,7 +130,7 @@ mutually-exclusive lines, so converging does not mean three people in one file:
 
 | Shared task | How it divides |
 |---|---|
-| App views | `src/app/ui/` is one file per component — A writes rail, B writes door and acv, C writes shm |
+| App views | `src/app/ui/` is one file per component — Jermaine writes rail, Jou writes door and acv, Wayne writes shm |
 | `src/submission/` | Written together: `validate.py` checks a CSV against `reference/submission_format/`, `package.py` zips flat |
 | **The submission run** | **Each person runs their own subsystem's test files through the app and validates their own CSV** — the person who knows the schema is the person who checks it |
 | `predictions.zip` | One person zips, once all four CSVs are validated |
@@ -137,8 +144,8 @@ its CSV passes `validate.py`. Not the notebook — the app. That is what the ear
 1. **Cache every feature matrix to disk.** Rail extraction over 5.6 GB happens once. Re-extracting
    during tuning is how a 24-hour project dies. `read_table` returns whole DataFrames with no
    chunking, so extract file-at-a-time and persist.
-2. **A never blocks on the full rail run.** Build the pipeline on a 100-file subsample; run the
-   full extraction in the background.
+2. **Jermaine never blocks on the full rail run.** Build the pipeline on a 100-file subsample; run
+   the full extraction in the background.
 
 If rail extraction is still fighting back with a third of the time left, drop it to a simple
 per-side RMS/band-energy model and take the ~0.5. An unfinished pipeline scores 0.33.

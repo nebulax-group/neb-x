@@ -9,7 +9,8 @@ anyone else's diffs. This is where a change that crosses a package boundary gets
 a shared constant, a file schema, a function signature, a cached artefact under `outputs/`. Purely
 internal work inside your own subsystem does not need an entry.
 
-**Role:** —
+**Role:** A — `src/rail/` end to end, plus the rail view. The heaviest column and the longest
+serial loop; start extraction first and never block on the full run. See [[team-split]].
 
 ## Changes
 

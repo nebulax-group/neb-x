@@ -9,7 +9,9 @@ anyone else's diffs. This is where a change that crosses a package boundary gets
 a shared constant, a file schema, a function signature, a cached artefact under `outputs/`. Purely
 internal work inside your own subsystem does not need an entry.
 
-**Role:** —
+**Role:** B — `common/metrics.py` first (it blocks everyone's tuning), then `src/door/`, then
+`src/acv/`, plus both those views. Finishes earliest, then reinforces Jermaine on rail model and
+CV. See [[team-split]].
 
 ## Changes
 
