@@ -15,15 +15,21 @@ def _numeric(frame: pd.DataFrame, column: str) -> pd.Series:
 
 
 def temperature_excess(frame: pd.DataFrame, cars: dict) -> pd.Series:
-    """Mean degrees each car sits above its own cooling setpoint."""
+    """Mean degrees each car sits above its own cooling setpoint.
+
+    Every car car_columns found gets an entry, NaN included. A car with no usable
+    reading (e.g. acv_case_04.xlsx's cars 05-08, which have columns but no data) is
+    not an error in the input - it is a car we cannot diagnose. The scoring rule
+    counts a car missing from ranked_cars as zero, so dropping it here would turn a
+    data gap into the worst possible score; rank_cars instead sorts NaN to the end,
+    which keeps the car present at the position that costs least.
+    """
     values = {}
     for car_id, params in sorted(cars.items()):
         indoor = _numeric(frame, dataset.resolve(params, config.INDOOR_TEMPERATURE_CANDIDATES))
         setpoint = _numeric(frame, dataset.resolve(params, config.COOLING_SETPOINT_CANDIDATES))
-        excess = (indoor - setpoint).mean()
-        if pd.notna(excess):
-            values[car_id] = float(excess)
-    if not values:
+        values[car_id] = float((indoor - setpoint).mean())
+    if all(pd.isna(v) for v in values.values()):
         raise ValueError("No car produced a usable temperature signal.")
     return pd.Series(values)
 

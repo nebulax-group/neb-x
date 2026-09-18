@@ -1,5 +1,7 @@
 """The signal must rank the true faulty car first on every same-schema case."""
 
+import pandas as pd
+
 from src.acv import config, dataset, features, predict, rank
 from src.submission import validate
 
@@ -42,6 +44,14 @@ def test_the_submission_has_one_row_naming_the_source_file_verbatim():
     assert frame["file_id"].iloc[0] == "acv_test_case.xlsx"
     assert list(frame.columns) == list(config.SUBMISSION_COLUMNS)
     validate.validate("acv", frame)
+
+
+def test_a_car_with_no_usable_signal_is_ranked_last_not_dropped():
+    """A NaN score must never make its car missing from ranked_cars - that scores zero."""
+    scores = pd.Series({"03": 1.0, "01": 2.0, "04": float("nan"), "02": 0.5})
+    order = rank.rank_cars(scores)
+    assert order == ["01", "03", "02", "04"]
+    assert "04" in order
 
 
 def test_duty_cycle_is_a_fraction_for_every_car():

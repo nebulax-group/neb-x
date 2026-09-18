@@ -6,8 +6,15 @@ from . import config
 
 
 def rank_cars(scores: pd.Series) -> list[str]:
-    """Car ids from most to least likely faulty. Ties break by car id, deterministically."""
-    ordered = scores.sort_index().sort_values(ascending=False, kind="stable")
+    """Car ids from most to least likely faulty. Ties break by car id, deterministically.
+
+    A car with no usable signal (NaN score) is still ranked, last - explicit
+    na_position="last" rather than relying on pandas' default, so the guarantee that
+    every car appears survives even if that default ever changed.
+    """
+    ordered = scores.sort_index().sort_values(
+        ascending=False, kind="stable", na_position="last"
+    )
     return [str(car_id) for car_id in ordered.index]
 
 
