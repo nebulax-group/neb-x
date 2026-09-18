@@ -21,7 +21,8 @@ Per-person change logs. Append an entry when a change crosses a package boundary
 
 - [Wayne](wayne.md) — what Wayne changed, newest first.
 - [Jermaine](jermaine.md) — what Jermaine changed, newest first.
-- [Jou](jou.md) — what Jou changed, newest first.
+- [Jou](jou.md) — what Jou changed, newest first. **Read this one for cross-package changes;**
+  [jouyuan.md](jouyuan.md) is the Door/ACV knowledge, not a duplicate.
 
 ## Sources of truth, in order
 
