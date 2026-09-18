@@ -28,6 +28,35 @@ limits honestly — they are the difference between a defensible result and an o
 That third row is the real cross-door evidence: an unsupervised look at the test stream alone
 reaches the same 30/8 answer the trained model does.
 
+## Harder Door protocols — the CV flatters the classifier, not the feature
+
+Random CV folds over segments of ONE continuous recording can be optimistic: neighbouring cycles
+leak into each other's folds. Protocols that cannot cheat that way:
+
+| Protocol | Learned split | Fixed 1.10 threshold |
+|---|---|---|
+| Temporal 50/50 (train first half) | 0.9091 (5 errors) | **1.0000** |
+| Temporal 70/30 | 1.0000 | 1.0000 |
+| Train on Close only → validate Open | 1.0000 | 1.0000 |
+| Train on Open only → validate Close | 0.8545 (8 errors) | **1.0000** |
+
+**The feature is not weak — the estimator places its split badly on small subsets.** Where the
+learned split actually lands:
+
+- trained on all 110: ratio ≈ **1.102** (inside the safe zone)
+- trained on the first 55: ratio ≈ 1.015 (below it)
+- trained on Open only: ratio ≈ 1.013 (below it)
+
+The zone that works for both operations is **1.068 < t < 1.135**. HistGradientBoosting hugs
+whatever its training subset's highest normal happens to be rather than centring in the global gap,
+so with half the data it drifts low and starts calling normals abnormal.
+
+**What this means for the shipped system.** It trains on all 110, lands at 1.102, and is correct —
+and  fails if
+that ever drifts, so the guard already exists. But describe the result accurately: **the robustness
+comes from the fixed threshold sitting in a wide gap, with the classifier verified to agree — not
+from the classifier.** Do not quote the 1.0000 CV as evidence of robustness on its own.
+
 ## ACV
 
 Block bootstrap on the held-out file, 200 resamples of contiguous 6-hour blocks:
