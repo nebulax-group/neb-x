@@ -16,9 +16,29 @@ too - but no agreement/disagreement verdict is computed from them.
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from . import dataset, features
+
+
+def _rank_worst_last(values: pd.Series) -> pd.Series:
+    """Dense-rank best first, with a NaN value sent to the worst rank instead of NaN.
+
+    na_option="bottom" gives an unusable car the worst rank instead of leaving it NaN
+    (which plain .astype(int) would then raise on) - required so a car with no usable
+    reading stays in the report, ranked last, rather than being dropped: a car missing
+    from ranked_cars scores zero under the organisers' formula.
+
+    rank()'s default method averages tied positions, which always lands on a whole
+    number or a half - e.g. four cars tied for ranks 5-8 average to 6.5. Plain
+    .astype(int) truncates, so every such .5 is silently floored (6.5 -> 6, matching
+    the better-ranked group's boundary purely by luck of being even); floor(x + 0.5)
+    rounds ties up instead, so a tied group lands just past the better ranks (6.5 -> 7)
+    rather than appearing to overlap them.
+    """
+    ranks = values.rank(ascending=False, na_option="bottom")
+    return np.floor(ranks + 0.5).astype(int)
 
 
 def confirmation(path: str | Path) -> pd.DataFrame:
@@ -33,15 +53,6 @@ def confirmation(path: str | Path) -> pd.DataFrame:
             "cooling_duty_cycle": duty.values,
         }
     )
-    # temperature_excess can hold NaN for a car with no usable reading (see
-    # features.temperature_excess) and that car must stay in the report, ranked last,
-    # rather than being dropped - dataset.py's no-dropped-cars guarantee applies here
-    # too. Plain .rank(ascending=False) leaves NaN as NaN, and .astype(int) on a NaN
-    # then raises, so na_option="bottom" is used to give it the worst rank instead.
-    table["excess_rank"] = table["temperature_excess"].rank(
-        ascending=False, na_option="bottom"
-    ).astype(int)
-    table["duty_rank"] = table["cooling_duty_cycle"].rank(
-        ascending=False, na_option="bottom"
-    ).astype(int)
+    table["excess_rank"] = _rank_worst_last(table["temperature_excess"])
+    table["duty_rank"] = _rank_worst_last(table["cooling_duty_cycle"])
     return table.sort_values("excess_rank").reset_index(drop=True)
