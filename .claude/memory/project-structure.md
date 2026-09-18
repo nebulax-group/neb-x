@@ -46,30 +46,30 @@ neb-x/
 │
 ├── src/
 │   ├── common/                   subsystem-agnostic. Knows nothing about any one subsystem.
-│   │   ├── paths.py              OWNS every path in the project, derived from the repo root      ✗
-│   │   ├── config.py             global constants: seed, subsystem keys, output names            ✗
-│   │   ├── interface.py          the Subsystem protocol every subsystem implements               ✗
-│   │   ├── registry.py           subsystem key -> Subsystem; the only lookup the app uses        ✗
-│   │   ├── io.py                 read csv/xlsx, list a dataset folder                            ✗
-│   │   ├── splits.py             grouped train/val splitting helpers                             ✗
-│   │   ├── features.py           generic time-series primitives (stats, FFT bands, envelopes)    ✗
-│   │   └── metrics.py            the four official metrics, one function each                    ✗
+│   │   ├── config.py             OWNS every path and global constant: seed, keys, filenames     ✓
+│   │   ├── io.py                 read csv/xlsx, list a dataset folder                           ✓
+│   │   ├── paths.py              a pure re-export shim of config.py — debt, delete after        ~
+│   │   ├── metrics.py            the four official metrics, one function each                   ✗
+│   │   ├── interface.py · registry.py · splits.py · features.py     CUT — see rule 8            ✗
 │   │
 │   ├── door/ acv/ rail/ shm/     one package per subsystem, same file names throughout:
-│   │   ├── config.py             OWNS every dimension of that subsystem                          ✗
-│   │   ├── dataset.py            raw files -> arrays/DataFrame. No feature logic.                ✗
-│   │   ├── features.py           arrays -> feature matrix. No model, no IO.                      ✗
-│   │   ├── model.py              the estimator and its hyperparameters. No IO.                   ✗
-│   │   ├── train.py              fit, validate, write a checkpoint to outputs/models/<sub>/      ✗
-│   │   ├── predict.py            checkpoint + test folder -> <sub>_predictions.csv              ✗
-│   │   └── subsystem.py          wires the above into common/interface.py                        ✗
+│   │   ├── config.py             OWNS every dimension of that subsystem                    rail ✓
+│   │   ├── dataset.py            raw files -> arrays/DataFrame. No feature logic.          rail ✓
+│   │   ├── features.py           arrays -> feature matrix. No model, no IO.                rail ✓
+│   │   ├── model.py              the estimator and its hyperparameters. No IO.             rail ✓
+│   │   ├── train.py              fit, validate, checkpoint to outputs/models/<sub>/        rail ✓
+│   │   ├── predict.py            predict(inputs: list[Path]) -> DataFrame. THE contract.   rail ✓
+│   │   └── explain.py            optional: the same run as panels the app draws            rail ✓
+│   │   (rail also: speed.py — tachometer square wave -> m/s)
 │   │   (door also: segment.py — cycle detection in the continuous stream)
 │   │   (acv  also: rank.py — per-car scoring into a ranked_cars string)
+│   │   (subsystem.py is CUT — nothing wires a protocol; services.py imports by name)
 │   │
-│   ├── app/                      the compulsory non-technical UI
-│   │   ├── main.py               entry point and routing ONLY                                    ✗
-│   │   ├── ui/                   one file per screen/component                                   ✗
-│   │   └── services.py           calls the registry; contains no model or feature code           ✗
+│   ├── app/                      the compulsory non-technical UI       (Wayne's, not yet merged)
+│   │   ├── main.py               entry point and routing ONLY                                   ~
+│   │   ├── config.py             page identity, the words on screen, the palette                ~
+│   │   ├── ui/                   one file per COMPONENT — never one per subsystem               ~
+│   │   └── services.py           importlib to src.<sub>.predict / .explain. No model code.      ~
 │   │
 │   └── submission/
 │       ├── validate.py           check a CSV against reference/submission_format/                ✗
@@ -82,15 +82,17 @@ neb-x/
 │   └── package.sh
 │
 └── outputs/                      everything generated, gitignored
-    ├── models/<sub>/   checkpoints + fitted scalers
+    ├── models/<sub>/   checkpoints, plus any cached feature matrix
     ├── predictions/    the four *_predictions.csv
     ├── plots/          figures for the write-up
     ├── logs/
     └── submission/     the packaged <Team Name>/ folder
 ```
 
-Status column: ✓ exists and works, `~` exists but unrun, ✗ planned. Everything under `src/` and
-`scripts/` is ✗ as of 2026-09-18 — the tree is scaffolding.
+Status column: ✓ exists and works, `~` exists but unrun or on a branch, ✗ planned. Reconciled
+2026-09-18: **`common/` and `src/rail/` are done**, Wayne's `src/app/` and `src/shm/` are complete on
+his branch and not yet merged, and `src/door/`, `src/acv/`, `src/submission/` and `scripts/` are
+still empty. The tree is no longer scaffolding — check before assuming a file is absent.
 
 ## The rules
 
@@ -104,15 +106,24 @@ Status column: ✓ exists and works, `~` exists but unrun, ✗ planned. Everythi
    column names, label vocabularies, thresholds, hyperparameters. Nothing else restates one
    without deriving it from there. A restated constant is how the trainer and the predictor end up
    disagreeing, which survives validation and only shows up in the submitted CSV.
-5. **`common/paths.py` owns every path.** No file builds a path from a literal, and nothing outside
-   it reads `data/` or writes `outputs/` by string.
+5. **`common/config.py` owns every path.** No file builds a path from a literal, and nothing outside
+   it reads `data/` or writes `outputs/` by string. A path *composed* from two owned constants —
+   `MODEL_DIRS[key] / config.CHECKPOINT_NAME` — is a derivation, not a restatement, and two modules
+   composing it identically is correct; importing one from the other would invert a layer.
+   (`common/paths.py` is now a pure re-export shim of `config.py` and should be deleted.)
 6. **Nothing that varies gets written as a literal.** If it could change, it lives in a config.
 7. **The layers do not blur.** `dataset.py` does IO and no features. `features.py` does features and
-   no IO. `model.py` does neither. `train.py` and `predict.py` are the only files that touch disk
-   under `outputs/`.
-8. **One app, all subsystems.** The app never branches on subsystem internals — it asks
-   `common/registry.py` for a Subsystem and calls the interface. Adding a fifth subsystem must not
-   require editing the app.
+   no IO. `model.py` does neither. `train.py` and `predict.py` are the only files that **write**
+   under `outputs/`; `explain.py` may read a checkpoint but computes every number it shows from the
+   same functions the feature vector is built from, so an explanation cannot drift from the
+   prediction it explains.
+8. **One app, all subsystems.** The app never branches on which subsystem is selected — it asks for
+   a *capability* and gets one or does not. `registry.py` and `interface.py` were cut as overhead;
+   `src/app/services.py` resolves `src.<sub>.predict.predict` (required) and
+   `src.<sub>.explain.explain` (optional) by `importlib`, and `src/app/ui/explain.py` draws whatever
+   panels come back by switching on each panel's `kind`. Two consequences: a subsystem is added
+   without touching the app, and **there are no per-subsystem view files** — `src/app/ui/<sub>.py`
+   must never be written.
 9. **`docs/`, `reference/` and `data/` are read-only inputs.** Never edit, never rename. The
    organisers' file names are part of the submission contract (`file_id`).
 10. **`outputs/` is the only place anything is written**, and it is entirely regenerable. Never

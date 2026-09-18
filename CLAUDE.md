@@ -42,12 +42,14 @@ Full tree and the rules behind it: [project-structure.md](.claude/memory/project
   `common` ← subsystem ← app.
 - `src/<sub>/` packages never import each other. Shared logic moves **down** into `common/`,
   never sideways.
-- `src/<sub>/config.py` owns every dimension of that subsystem; `src/common/paths.py` owns every
+- `src/<sub>/config.py` owns every dimension of that subsystem; `src/common/config.py` owns every
   path. Nothing restates a constant it could derive.
 - `dataset.py` does IO and no features. `features.py` does features and no IO. `model.py` does
   neither. Only `train.py` / `predict.py` write to `outputs/`.
-- One app for all subsystems, routed through `src/common/registry.py` — the app never branches on
-  subsystem internals.
+- One app for all subsystems. It asks for a **capability**, never for a subsystem by name:
+  `src/app/services.py` resolves `src.<sub>.predict.predict(inputs: list[Path]) -> DataFrame`
+  (required) and `src.<sub>.explain.explain(inputs) -> list[dict]` (optional panels) by `importlib`.
+  There is no registry and **no per-subsystem view file** — never write `src/app/ui/<sub>.py`.
 
 The full twelve rules are in [project-structure.md](.claude/memory/project-structure.md#the-rules).
 
