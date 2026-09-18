@@ -27,6 +27,7 @@ DOCS_DIR = REPO_ROOT / "docs"
 REFERENCE_DIR = REPO_ROOT / "reference"
 SUBMISSION_FORMAT_DIR = REFERENCE_DIR / "submission_format"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
+STREAMLIT_CONFIG_PATH = REPO_ROOT / ".streamlit" / "config.toml"
 
 OUTPUTS_DIR = REPO_ROOT / "outputs"
 MODELS_DIR = OUTPUTS_DIR / "models"
