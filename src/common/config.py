@@ -26,6 +26,8 @@ DEFAULT_TEAM_NAME = "neb-x"
 CSV_EXTENSION = ".csv"
 XLSX_EXTENSION = ".xlsx"
 SUPPORTED_DATA_EXTENSIONS = (CSV_EXTENSION, XLSX_EXTENSION)
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv")
+DEMO_VIDEO_STEM = "demo_video"
 IGNORED_DATA_FILE_PREFIXES = (".", "~$")
 DEFAULT_EXCEL_SHEET = 0
 
@@ -45,6 +47,10 @@ DOCS_DIR = REPO_ROOT / "docs"
 REFERENCE_DIR = REPO_ROOT / "reference"
 SUBMISSION_FORMAT_DIR = REFERENCE_DIR / "submission_format"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
+
+# The demo video is recorded by hand and is too large to commit, so it is kept here
+# and gitignored. Packaging copies the first video it finds into the submission.
+VIDEO_DIR = REPO_ROOT / "video"
 STREAMLIT_CONFIG_PATH = REPO_ROOT / ".streamlit" / "config.toml"
 
 OUTPUTS_DIR = REPO_ROOT / "outputs"

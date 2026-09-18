@@ -27,6 +27,7 @@ from pathlib import Path
 
 from src.common.config import (
     DEFAULT_TEAM_NAME,
+    DEMO_VIDEO_STEM,
     MODEL_DIRS,
     PREDICTION_PATHS,
     PREDICTIONS_ARCHIVE_NAME,
@@ -35,6 +36,8 @@ from src.common.config import (
     SUBMISSION_DIR,
     SUBSYSTEM_LABELS,
     SUBSYSTEMS,
+    VIDEO_DIR,
+    VIDEO_EXTENSIONS,
 )
 
 from .validate import validate_subsystem
@@ -129,6 +132,30 @@ def copy_optional(subsystems: list[str], destination: Path) -> list[str]:
     return written
 
 
+def copy_video(destination: Path) -> Path | None:
+    """Copy the demo video into the submission, or None if there is not one yet.
+
+    Missing is a normal state rather than an error: the video is recorded once, at
+    the end, and everything else has to be packageable before then.
+    """
+    if not VIDEO_DIR.is_dir():
+        return None
+
+    found = sorted(
+        item
+        for item in VIDEO_DIR.iterdir()
+        if item.is_file() and item.suffix.lower() in VIDEO_EXTENSIONS
+    )
+    if not found:
+        return None
+
+    # Named for the deliverable rather than for whatever the screen recorder called
+    # it, but the extension is kept so the file still plays.
+    target = destination / f"{DEMO_VIDEO_STEM}{found[0].suffix.lower()}"
+    shutil.copy2(found[0], target)
+    return target
+
+
 def build(team: str = DEFAULT_TEAM_NAME, root: Path | None = None) -> Path:
     """Assemble the submission folder and return it.
 
@@ -157,20 +184,44 @@ def build(team: str = DEFAULT_TEAM_NAME, root: Path | None = None) -> Path:
     write_archive(ready, destination)
     missing_app = copy_app(destination)
     optional = copy_optional(ready, destination)
+    video = copy_video(destination)
 
     print(f"packaged {len(ready)} of {len(SUBSYSTEMS)} subsystems: {', '.join(ready)}")
     print(f"  {PREDICTIONS_ARCHIVE_NAME}  {', '.join(PREDICTION_PATHS[s].name for s in ready)}")
     print(f"  {APP_DIR_NAME}/            {len(APP_CONTENTS) - len(missing_app)} items")
     if optional:
         print(f"  {OPTIONAL_DIR_NAME}/  {', '.join(optional)}")
-    if missing_app:
-        print(f"  note: not in the repo, so not copied: {', '.join(missing_app)}")
+    if video is not None:
+        print(f"  {video.name}          from {VIDEO_DIR}")
 
     print(f"\nsubmission folder: {destination}")
-    print("still to add by hand:")
-    print(f"  {destination.name}/demo_video.mp4        a screen recording of the app, 3 min max")
+
+    outstanding = []
+    if missing_app:
+        outstanding.append(f"file not found, skipped: {', '.join(missing_app)}")
+    if video is None:
+        outstanding.append(
+            f"file not found, skipped: the demo video. Put the recording in {VIDEO_DIR} "
+            "and run this again. Section 4.1 does not score a subsystem without it."
+        )
     if team == DEFAULT_TEAM_NAME:
-        print(f"  rename {destination.name}/ to the team name exactly as registered")
+        outstanding.append(
+            f"the folder is named {DEFAULT_TEAM_NAME!r}, which is a placeholder. "
+            "Re-run with --team to set the registered name."
+        )
+    missing_subsystems = [key for key in SUBSYSTEMS if key not in ready]
+    if missing_subsystems:
+        outstanding.append(
+            f"no prediction file yet for: {', '.join(missing_subsystems)}. "
+            "They join the zip automatically once their predict step runs."
+        )
+
+    if outstanding:
+        print("\nnot submittable yet:")
+        for note in outstanding:
+            print(f"  - {note}")
+    else:
+        print("\nevery compulsory item is present.")
     return destination
 
 

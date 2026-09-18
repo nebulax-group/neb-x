@@ -42,3 +42,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Recorded by hand, too large to commit. Packaging copies it into the submission.
+video/

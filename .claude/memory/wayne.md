@@ -57,6 +57,67 @@ would be wrong without. This applies to every file written for this project, by 
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-18 23:45 - submit.sh asks for the team name; where every file goes
+
+**What.** `./submit.sh` now prompts for the team name before it does anything, and anything it
+cannot find is reported and skipped rather than failing the run. The demo video is picked up from
+`video/` at the repo root.
+
+    ./submit.sh                      asks: Team name, exactly as registered:
+    ./submit.sh --team "Depot Crew"  skips the prompt
+
+Only a failed validation stops it. A CSV that does not match the schema is scored as-is by the
+organisers, so it must never reach the zip. Everything else missing is a line under "not
+submittable yet" and the build continues.
+
+### Where every file goes
+
+**What you put where, by hand:**
+
+| Put it here | What |
+|---|---|
+| `video/` | The demo recording, any of mp4, mov, m4v, webm, avi, mkv. Gitignored, it is too large to commit. Packaging renames it to `demo_video.<ext>`; if several are there it takes the first by name. |
+| `data/<sub>/` | The organisers' datasets, unchanged. Gitignored, never renamed. |
+| `src/<sub>/` | Your subsystem's code. Copied into `Optional_Items/<Subsystem>/code/`. |
+
+**What the tools write, all regenerable:**
+
+| Written to | By | Becomes |
+|---|---|---|
+| `outputs/models/<sub>/` | `train.py` | `Optional_Items/<Subsystem>/model/` |
+| `outputs/predictions/<sub>_predictions.csv` | `predict.py`, or the app's download button | a flat entry in `predictions.zip` |
+| `outputs/submission/<team>/` | `package.py` | the folder we send |
+
+**The folder that gets submitted:**
+
+    <team>/
+    |-- demo_video.<ext>       from video/
+    |-- predictions.zip        flat, only the CSVs that validated
+    |-- app/                   src, scripts, .streamlit, requirements.txt, install, submit
+    `-- Optional_Items/
+        `-- <Subsystem>/{code,model}/      Door, ACV, Rail Corrugation, SHM
+
+`data/` and `outputs/` are never copied into it. Section 4.1 says not to send the datasets back,
+and the whole folder is currently 264 KB.
+
+Two things cross a boundary:
+
+1. **`VIDEO_DIR`, `VIDEO_EXTENSIONS` and `DEMO_VIDEO_STEM` are in `src/common/config.py`**, and
+   `video/` is now gitignored.
+2. **Missing is never an error except for a bad CSV.** `copy_video` returns `None` when there is
+   no recording yet, and the build says "file not found, skipped" and carries on. That is
+   deliberate: everything else has to be packageable before the video exists, or we cannot
+   rehearse the submission until the last hour.
+
+**Verified.** Driven through a real pty: typing "Depot Crew" at the prompt produces
+`outputs/submission/Depot Crew/` with `demo_video.mov` copied from `video/`. With no video it
+reports the file as not found and still builds. `--team` skips the prompt. The `.bat` twins
+mirror these line for line and remain untested, since neither of us has Windows.
+
+**Affects.** Jermaine, Jou: run `./submit.sh` any time to see where the submission stands. Your
+subsystem appears in the zip and in `Optional_Items/` automatically once your `predict.py` writes
+a valid CSV, with nothing to coordinate.
+
 ### 2026-09-18 23:20 - package.py, submit.sh, and what every script does
 
 **What.** The submission now builds itself. `./submit.sh` validates then packages, and is the
