@@ -52,8 +52,8 @@ whatever its training subset's highest normal happens to be rather than centring
 so with half the data it drifts low and starts calling normals abnormal.
 
 **What this means for the shipped system.** It trains on all 110, lands at 1.102, and is correct —
-and  fails if
-that ever drifts, so the guard already exists. But describe the result accurately: **the robustness
+and the `test_the_fitted_model_agrees_with_the_documented_threshold` test in
+`tests/door/test_model.py` fails if that ever drifts, so the guard already exists. But describe the result accurately: **the robustness
 comes from the fixed threshold sitting in a wide gap, with the classifier verified to agree — not
 from the classifier.** Do not quote the 1.0000 CV as evidence of robustness on its own.
 
