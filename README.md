@@ -79,6 +79,9 @@ Hackathon prediction CSV generation remains available through the submission scr
 
 ## Running the subsystems (Command-line examples)
 
+**SHM**
+to be filled in
+
 **Door** — train, then predict:
 
 ```bash
@@ -125,11 +128,6 @@ refresh `.venv` first:
 # -> Wrote 68 rail predictions to outputs/predictions/rail_predictions.csv
 # ->   Normal 60  Side I 5  Side II 3
 ```
-
-Rail refuses to predict without a checkpoint, as Door and SHM do — a subsystem that quietly
-answered with its majority class would write a schema-valid CSV that no model produced, and
-`./submit.sh` neither trains nor could tell the difference.
-
 
 ## How the subsystems work
 
