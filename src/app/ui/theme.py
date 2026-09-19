@@ -97,21 +97,6 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     background: var(--nx-hairline-strong);
 }
 
-.nx-chip {
-    margin-left: auto;
-    padding: 0.2rem 0.55rem;
-    font-family: %(mono)s;
-    font-size: 0.68rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: var(--nx-instrument);
-    background: var(--nx-instrument-wash);
-    border: 1px solid var(--nx-hairline-strong);
-    border-radius: 2px;
-}
-
 .stApp h1.nx-title {
     margin: 1.6rem 0 0;
     padding: 0;
@@ -171,14 +156,35 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     background: var(--nx-deck);
     border: 1px solid var(--nx-hairline);
     border-radius: 3px;
-    transition: border-color 160ms ease-out, background-color 160ms ease-out;
+    transition: border-color 160ms ease-out, background-color 160ms ease-out,
+                transform 160ms ease-out;
 }
 
-[class*="st-key-nx-card-"]:hover { border-color: var(--nx-hairline-strong); }
+[class*="st-key-nx-card-"]:hover { transform: translateY(-2px); }
 
+/* Where a system stands in the queue, as a colour on its own edge. This is the one
+   place the signal aspects are not a severity a subsystem supplied: nothing assessed
+   is the instrument accent, on the queue is red, finished is green. A finished card
+   is green whatever its verdict says, so the verdict inside still carries the reading.
+   The tone is a variable rather than a border rule so the lamp and the selected ring
+   cannot drift from the edge. */
+.nx-tone-idle { --nx-tone: var(--nx-instrument); }
+.nx-tone-work { --nx-tone: var(--nx-danger); }
+.nx-tone-done { --nx-tone: var(--nx-clear); }
+
+/* :has() again on the container, because a card's edge is drawn by the element above
+   the one carrying the class. */
+[class*="st-key-nx-card-"]:has(.nx-tone-idle) { --nx-tone: var(--nx-instrument); }
+[class*="st-key-nx-card-"]:has(.nx-tone-work) { --nx-tone: var(--nx-danger); }
+[class*="st-key-nx-card-"]:has(.nx-tone-done) { --nx-tone: var(--nx-clear); }
+
+[class*="st-key-nx-card-"] { border-color: var(--nx-tone, var(--nx-hairline)); }
+
+/* Selection is a doubled edge on the raised ground, so picking a system never
+   recolours what its colour is reporting. */
 [class*="st-key-nx-card-"]:has(.nx-on) {
     background: var(--nx-deck-high);
-    border-color: var(--nx-instrument);
+    box-shadow: inset 0 0 0 1px var(--nx-tone, var(--nx-hairline-strong));
 }
 
 /* Only the button is pushed to the foot of the card. Matching the last child instead
@@ -204,15 +210,11 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 }
 
 /* The glow is what makes a lit lamp read as lit rather than as a coloured dot; it is
-   the one piece of decoration on the page and it encodes real state. */
+   the one piece of decoration on the page and it encodes real state. The tone is
+   inherited from the card, so the lamp and the edge always agree. */
 .nx-lamp.nx-lit {
-    background: var(--nx-clear);
-    box-shadow: 0 0 0 3px rgba(67, 184, 136, 0.16);
-}
-
-.nx-on .nx-lamp.nx-lit {
-    background: var(--nx-instrument);
-    box-shadow: 0 0 0 3px rgba(91, 200, 222, 0.2);
+    background: var(--nx-tone, var(--nx-hairline-strong));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--nx-tone, transparent) 18%%, transparent);
 }
 
 .nx-lamp-text {
@@ -242,6 +244,18 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 
 .nx-off .nx-card-name, .nx-off .nx-card-blurb { opacity: 0.55; }
 
+/* Everything not being looked at recedes, so the board has one obvious subject. The
+   lamp and the edge keep their full strength: a system's standing has to stay
+   readable across the whole board, which is the point of colouring it. */
+[class*="st-key-nx-card-"]:not(:has(.nx-on)) .nx-card-name,
+[class*="st-key-nx-card-"]:not(:has(.nx-on)) .nx-card-blurb {
+    /* Measured: the blurb sits at 4.5:1 on the recessed ground at 0.72, which is AA
+       exactly. The margin is deliberate, dimming is not worth an unreadable card. */
+    opacity: 0.78;
+}
+
+[class*="st-key-nx-card-"]:not(:has(.nx-on)) { background: var(--nx-abyss); }
+
 [class*="st-key-nx-card-"] .stButton button {
     width: 100%%;
     font-family: %(mono)s;
@@ -257,7 +271,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     letter-spacing: 0.02em;
     border-radius: 2px;
     transition: background-color 160ms ease-out, border-color 160ms ease-out,
-                color 160ms ease-out;
+                color 160ms ease-out, transform 90ms ease-out;
 }
 
 .stDownloadButton button { padding-left: 1.4rem; padding-right: 1.4rem; }
@@ -271,6 +285,21 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 }
 
 [data-testid="stFileUploaderDropzone"]:hover { border-color: var(--nx-instrument); }
+
+/* A batch is assessed whole. Removing one recording from under an answer, or adding
+   one to it, would leave the reading describing files that are no longer the batch,
+   so both controls go and Clear all replaces them. */
+[data-testid="stFileChipDeleteBtn"],
+[data-testid="stFileChips"] [data-testid="stBaseButton-borderlessIcon"] {
+    display: none;
+}
+
+[class*="st-key-nx-clear-"] .stButton button {
+    font-family: %(mono)s;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
 
 /* Streamlit paints the file chip's icon tile with the theme text colour, which on a
    dark ground is a white square bright enough to pull the eye off the result. */
@@ -657,7 +686,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     border: 1px solid var(--nx-hairline);
     border-radius: 2px;
     transition: background-color 160ms ease-out, border-color 160ms ease-out,
-                color 160ms ease-out;
+                color 160ms ease-out, transform 90ms ease-out;
 }
 
 .st-key-nx-view-toggle
@@ -1074,7 +1103,6 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 }
 
 @media (max-width: 640px) {
-    .nx-chip { display: none; }
     [class*="st-key-nx-card-"] { min-height: 0; }
 
     /* Streamlit stacks columns on a narrow screen, which would turn the rail into six
@@ -1083,12 +1111,95 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     .st-key-nx-deck-steps { display: none; }
 }
 
+/* ── In flight ──────────────────────────────────────────── */
+
+/* The running panel keeps the verdict's geometry, so the answer lands in place
+   rather than pushing everything below it down the page. */
+.nx-running {
+    margin: 1.4rem 0 0;
+    padding: 1.05rem 1.15rem 0.95rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-left: 3px solid var(--nx-tone, var(--nx-instrument));
+    border-radius: 3px;
+}
+
+.nx-running-word {
+    font-family: %(mono)s;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nx-tone, var(--nx-instrument));
+}
+
+.nx-progress {
+    overflow: hidden;
+    height: 2px;
+    margin-top: 1.15rem;
+    background: var(--nx-hairline);
+    border-radius: 2px;
+}
+
+.nx-progress::after {
+    content: "";
+    display: block;
+    width: 34%%;
+    height: 100%%;
+    background: var(--nx-tone, var(--nx-instrument));
+    animation: nx-sweep 1.25s ease-in-out infinite;
+}
+
+/* ── Motion ────────────────────────────────────────────── */
+
+@keyframes nx-pulse {
+    0%%, 100%% { opacity: 1; transform: scale(1); }
+    50%% { opacity: 0.35; transform: scale(0.78); }
+}
+
+@keyframes nx-sweep {
+    from { transform: translateX(-110%%); }
+    to { transform: translateX(400%%); }
+}
+
+@keyframes nx-rise {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: none; }
+}
+
+.nx-lamp.nx-pulse { animation: nx-pulse 1.4s ease-in-out infinite; }
+
+/* Entrances are confined to the two things that genuinely arrive: an answer, and
+   the step a reader just asked for. Everything else survives a rerun in place, and
+   would replay its entrance on every click if it were given one. */
+.nx-verdict, .nx-running { animation: nx-rise 200ms ease-out both; }
+[class*="st-key-nx-panel-"] { animation: nx-rise 220ms ease-out both; }
+
+[class*="st-key-nx-card-"] { position: relative; overflow: hidden; }
+
+[class*="st-key-nx-card-"]:has(.nx-pulse)::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 34%%;
+    height: 2px;
+    background: var(--nx-tone, var(--nx-instrument));
+    animation: nx-sweep 1.25s ease-in-out infinite;
+}
+
+.stButton button:active, .stDownloadButton button:active { transform: scale(0.985); }
+
+[data-testid="stFileUploaderDropzone"]:focus-within { border-color: var(--nx-instrument); }
+
+/* The word beside a lamp carries the same state the motion does, so switching this
+   off costs a reader nothing. */
 @media (prefers-reduced-motion: reduce) {
-    [class*="st-key-nx-strip-"] [data-testid="stRadioOption"],
-    .stDownloadButton button, .stButton button,
-    [class*="st-key-nx-card-"],
-    .st-key-nx-view-toggle [data-testid*="stBaseButton-segmented_control"] {
-        transition: none;
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        animation-delay: 0ms !important;
+        transition-duration: 0.01ms !important;
     }
 }
 """ % {"sans": SANS_STACK, "mono": MONO_STACK}

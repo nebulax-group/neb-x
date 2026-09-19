@@ -58,6 +58,7 @@ _LABEL_GAP = 6
 _INSIDE = "_inside"
 _TICK_TARGET = 9
 _RAIL_SLACK = 4
+_PANEL_KEY = "nx-panel-{index}"
 
 _HEADING = """<div class="nx-explain-head">
 <h2 class="nx-explain-title">{heading}</h2>
@@ -532,4 +533,7 @@ def render(panels: list[dict[str, Any]], scope: str = "default") -> None:
     state_key = f"{PANEL_STATE_KEY}-{scope}"
     index = _current_step(len(panels), state_key)
     _render_rail(panels, index, state_key)
-    _render_body(panels[index])
+    # Keyed by step, so a new step is a new element and arrives rather than swapping
+    # in place. Every other rerun keeps the key and leaves the panel untouched.
+    with st.container(key=_PANEL_KEY.format(index=index)):
+        _render_body(panels[index])

@@ -1,5 +1,129 @@
 # Wayne — Change Log
 
+### 2026-09-19 — Systems are queued and assessed one at a time; the board carries the live state
+
+Each system's assessment now runs off the script thread, so starting one no longer
+holds the page. **One worker drains the queue**, so systems are assessed in the order
+they were started and two models never compete for the machine; running four at once
+was tried first and Wayne reported the app felt slower for it. New `src/app/jobs.py`
+keeps one job per system on that queue;
+`src/app/workspace.assess` starts or collects rather than blocking, and returns an
+`Outcome` of idle/queued/running/ready/failed instead of a `Run` that raised.
+`workspace.standing` answers where every system stands, not just the selected one.
+New `src/app/ui/progress.py` draws the queued and running panels under the same
+Assessment head the verdict uses, and polls with a `st.fragment(run_every=...)` mounted
+only while something is outstanding. A settled job is kept, so a batch that failed is
+reported once rather than retried on every rerun.
+
+**The board is now three colours, which the reader asked for: blue is nothing assessed,
+red is on the queue, green is an assessment that finished.** A system with no model
+keeps the resting hairline and still says "No model yet". The colour lives in one
+`--nx-tone` variable per card, so the edge, the lamp and the selected ring cannot
+drift apart, and selection became a doubled inner edge rather than a recolour.
+**Worth knowing before anyone builds on it: green here means "finished", not "healthy",
+so a card is green while its own verdict reads CAUTION or ALERT.** That is a second
+meaning for the signal aspects the palette had reserved for severity, and it was taken
+deliberately rather than by accident.
+
+One trap, found only by driving the real app: **the watch has to compare against the
+standing the board drew, not the standing at the end of the run.** The worker usually
+starts between those two moments, so recording the later one left the fragment already
+holding the change it existed to notice, and a working system reported itself "Queued"
+for its whole run. Tests did not catch it; the board did.
+
+**The handoff takes in every finished assessment, not only the selected one.**
+`workspace.collect` walks the job table on each run and harvests any settled job whose
+result is not already saved; a failed one is never collected. Before this, `runs` was
+written only by `assess`, which runs for the selected system alone, so a system that
+finished while the reader was on another one went green on the board and stayed absent
+from the review package until it was selected again. Reported by Wayne, confirmed in
+the browser: ACV now reaches the handoff at the moment it finishes, with Door selected
+throughout and ACV never revisited.
+
+**A batch is assessed whole, and Clear all is the only way to change one.** The
+uploader's per-file remove and its add control are hidden in the stylesheet, because
+either one lets a reader change the batch under an answer that has already been given
+about it. `workspace.reset` puts a system back to where it was before any file reached
+it: batch, job, assessment, memoised reading, staged copy, and the view and step it was
+left on. **A Streamlit uploader cannot be emptied by writing to its own state**, so
+clearing draws a new widget instead: `config.UPLOAD_GENERATION_KEY` counts per system
+and the count is part of the uploader's key. Clear all is offered only when there are
+files and never while the system is on the queue, which is the same rule as the lock.
+
+The staged copy is removed with the run, **but only when nothing else points at it** —
+two systems given the same files share one staged directory and one reading. Without
+that, a session working through several large batches carries every one of them until
+the process ends, which on a filesystem held in memory is the whole budget.
+
+**A system on the queue holds its uploader shut**, from the moment it joins until it
+finishes. `st.file_uploader(disabled=...)`, which disables the browse control and every file's remove button and refuses
+drops. Measured in the browser, not assumed. The widget keeps its value, and
+`assess` additionally refuses to drop a batch that reports empty while its job is on
+the queue, because a locked uploader has no way of being emptied by the reader.
+
+`src/app/cache.py` no longer uses `st.cache_data`: a pool thread has no script context
+for it. It is a bounded LRU behind `digest` / `staged` / `reading(subsystem, batch,
+uploads)` / `clear()`, built outside its lock so two systems do not queue. The digest
+is now memoised against Streamlit's own upload ids, so a large batch is hashed once
+rather than on every rerun; it was being re-read three times per interaction.
+
+**`.streamlit/config.toml` gained `fileWatcherType = "none"`, and this, not the
+threading, is what actually bought the responsiveness.** Without it the page still froze: Streamlit
+re-walks `sys.modules` and realpaths every entry after each script run, on the event
+loop, and polls those paths from four threads because watchdog is not installed. A
+subsystem that imports a large dependency mid-run grows that set enough to stall the
+loop for the whole length of its model. Measured with ACV: **a click on another system
+took 32 s to be answered before the change and 0.23 s after.** Nothing reloaded on edit
+anyway, so this costs only what a restart already cost.
+
+**Everything not selected recedes.** Name and blurb drop to 0.78 opacity on a darker
+ground, while the lamp and the coloured edge keep full strength: a system's standing
+has to stay readable right across the board, which is the whole point of colouring it.
+Measured rather than eyeballed, the dimmed blurb sits at **5.08:1**, so it clears AA
+with margin; 0.72 was tried first and landed on 4.5:1 exactly.
+
+Removed: the masthead's "4 of 4 systems ready" chip and the per-card "Model ready"
+line, with `READY_CHIP`, `BOARD_READY`, `SPINNER_MESSAGE`, the `chip` argument to
+`masthead.render` and the `.nx-chip` rule. A ready system now shows a lit lamp and no
+words; "No model yet" and "Running" stay, because those are the two states a reader
+has to act on or wait for. Motion added in five places, all transform/opacity and
+150-220 ms: the running lamp pulse, a sweep on a working card's foot and in the
+running panel, the verdict entrance, a stepped panel entrance, and card hover plus
+button press. Entrances are confined to things that genuinely arrive — verified that
+the verdict does **not** replay its entrance on an unrelated rerun, which is what
+would have made it a twitch. One `prefers-reduced-motion` block now covers all of it.
+
+**Affects: Jermaine and Jou — nothing in your packages changes.** `predict`, `explain`,
+`validate` and `handoff.build` are called exactly as before, with the same signatures,
+and the panel contract in `services.py` is untouched. Two things are newly true of
+your code, though: **it runs on a queue worker, so it must not touch `st`**, and a
+reader can be looking at another system while yours works, so it must not rely on
+mutable module-level state surviving between calls. Only one subsystem runs at a time,
+so nothing you write contends with another subsystem's run. Restart the app after
+editing anything under `src/app/`; that was always required and is now enforced by the
+watcher being off.
+
+**Jou, one measurement worth having:** `src/acv/validate.py` parses the whole workbook,
+so the app reads `acv_test_case.xlsx` twice per assessment. Validate alone is 9.5 s and
+validate plus predict is 20.0 s, so about half of ACV's wall time on the board is the
+same file being read a second time. Rail hit this and fixed it by reading the header
+alone with `nrows=0` (see [[jermaine]], 2026-09-19): the question "was this recorded by
+this system" is settled by the column names either way. Not changed here, it is your
+package.
+
+Validation: 235 tests pass, including new ones for the queue order, the board's
+standing for every system, a locked system keeping its batch, a reset clearing every
+key it should, and three assessments in a row through one reset each.
+
+Browser checks at 1440/768/390. Queue: ACV red and pulsing while Door sat red and still
+at "Queued", Door starting only once ACV finished, both ending green with Rail and SHM
+still blue, the uploader locked throughout. **Continuous use: three Door batches
+assessed and cleared in a row on one running app, each going blue to red to green and
+back to blue, the handoff gaining and losing its row each time, no per-file control
+reachable in any round, and SHM still assessing normally afterwards.** No console
+errors, no page errors, no exceptions, no horizontal overflow, reduced motion honoured.
+Screenshots are in the session scratchpad, not under `outputs/`.
+
 ### 2026-09-19 — Session windows and maintenance handoff
 
 Each subsystem keeps its uploader, latest assessed batch, view and cycle selection

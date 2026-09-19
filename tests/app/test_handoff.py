@@ -1,17 +1,18 @@
 """Review packages contain selected evidence, and never resurrect stale runs."""
 
+from concurrent.futures import wait
 from datetime import datetime, timezone
 from io import BytesIO
 import json
 from pathlib import Path
+import threading
 from unittest.mock import Mock
 import zipfile
 
 import pandas as pd
-import pytest
 from streamlit.testing.v1 import AppTest
 
-from src.app import cache, handoff, workspace
+from src.app import cache, handoff, jobs, workspace
 from src.acv import handoff as acv
 from src.shm import handoff as shm
 
@@ -37,26 +38,180 @@ def run(subsystem="door", review=None):
                          report() if review is None else review)
 
 
+def settled(subsystem, uploads, state):
+    """Drive one system to an answer the way the page's own poller does."""
+    outcome = workspace.assess(subsystem, uploads, state)
+    while outcome.state in workspace.ON_QUEUE:
+        wait([jobs.jobs(state)[subsystem].future], timeout=20)
+        outcome = workspace.assess(subsystem, uploads, state)
+    return outcome
+
+
+def answered(monkeypatch, reading=None):
+    monkeypatch.setattr(workspace.cache, "reading", reading or (lambda *args: cache.Reading(pd.DataFrame(), [], None)))
+    monkeypatch.setattr(workspace.cache, "staged", lambda *args: [])
+    monkeypatch.setattr(workspace.services, "review_report", lambda *args: report())
+
+
 def test_switching_systems_keeps_each_run_and_avoids_repeat_prediction(monkeypatch):
     reading = Mock(return_value=cache.Reading(pd.DataFrame(), [], None))
-    monkeypatch.setattr(workspace.cache, "reading", reading)
-    monkeypatch.setattr(workspace.cache, "_staged", lambda *args: [])
-    monkeypatch.setattr(workspace.services, "review_report", lambda *args: report())
+    answered(monkeypatch, reading)
     state = {}
-    door = workspace.assess("door", [upload()], state)
-    workspace.assess("shm", [upload("stress.csv")], state)
-    assert workspace.assess("door", [upload()], state) is door
+    door = settled("door", [upload()], state).run
+    settled("shm", [upload("stress.csv")], state)
+    assert settled("door", [upload()], state).run is door
     assert set(workspace.runs(state)) == {"door", "shm"}
     assert reading.call_count == 2
     assert workspace.runs({}) == {}  # A different browser session sees no runs.
 
 
+def test_systems_are_worked_through_one_at_a_time_in_the_order_they_started(monkeypatch):
+    began, finish, order = threading.Event(), threading.Event(), []
+
+    def held(subsystem, *args):
+        order.append(subsystem)
+        began.set()
+        finish.wait(20)
+        return cache.Reading(pd.DataFrame(), [], None)
+
+    answered(monkeypatch, held)
+    state = {}
+    workspace.assess("door", [upload()], state)
+    assert began.wait(10)
+    assert workspace.assess("door", [upload()], state).state == workspace.RUNNING
+    assert workspace.assess("shm", [upload("stress.csv")], state).state == workspace.QUEUED
+    assert order == ["door"]  # The second has not been started alongside the first.
+    finish.set()
+    assert settled("door", [upload()], state).state == workspace.READY
+    assert settled("shm", [upload("stress.csv")], state).state == workspace.READY
+    assert order == ["door", "shm"]
+
+
+def test_the_board_reports_where_every_system_stands(monkeypatch):
+    began, finish = threading.Event(), threading.Event()
+
+    def held(*args):
+        began.set()
+        finish.wait(20)
+        return cache.Reading(pd.DataFrame(), [], None)
+
+    answered(monkeypatch, held)
+    available = {"door": True, "shm": True, "acv": True, "rail": False}
+    state = {}
+    assert workspace.standing(available, state) == {
+        "door": workspace.IDLE, "shm": workspace.IDLE, "acv": workspace.IDLE,
+        "rail": "absent",
+    }
+    workspace.assess("door", [upload()], state)
+    assert began.wait(10)
+    workspace.assess("shm", [upload("stress.csv")], state)
+    places = workspace.standing(available, state)
+    assert (places["door"], places["shm"]) == (workspace.RUNNING, workspace.QUEUED)
+    finish.set()
+    settled("door", [upload()], state)
+    settled("shm", [upload("stress.csv")], state)
+    places = workspace.standing(available, state)
+    assert (places["door"], places["shm"]) == (workspace.READY, workspace.READY)
+
+
+def test_a_working_system_keeps_its_batch_when_its_uploader_reports_nothing(monkeypatch):
+    finish = threading.Event()
+
+    def held(*args):
+        finish.wait(10)
+        return cache.Reading(pd.DataFrame(), [], None)
+
+    answered(monkeypatch, held)
+    state = {}
+    assert workspace.assess("door", [upload()], state).state in workspace.ON_QUEUE
+    assert workspace.assess("door", [], state).state in workspace.ON_QUEUE
+    assert jobs.pending("door", state)
+    finish.set()
+    assert settled("door", [upload()], state).state == workspace.READY
+
+
 def test_replacing_files_with_invalid_data_removes_old_report(monkeypatch):
     state = {workspace.STATE_KEY: {"door": run()}}
     monkeypatch.setattr(workspace.cache, "reading", Mock(side_effect=ValueError("wrong layout")))
-    with pytest.raises(ValueError):
-        workspace.assess("door", [upload(data=b"bad")], state)
+    outcome = settled("door", [upload(data=b"bad")], state)
+    assert outcome.state == workspace.FAILED
+    assert isinstance(outcome.error, ValueError)
     assert not workspace.runs(state)
+
+
+def test_clearing_a_system_resets_everything_the_session_held_about_it(monkeypatch):
+    answered(monkeypatch)
+    state = {"nx_panel_index-Door": 3, "nx_result_view-Door": "technical"}
+    assert settled("door", [upload()], state).state == workspace.READY
+
+    workspace.reset("door", state)
+
+    assert not workspace.runs(state)
+    assert not jobs.jobs(state)
+    assert state["nx_upload_generation"]["door"] == 1
+    assert "nx_panel_index-Door" not in state and "nx_result_view-Door" not in state
+    assert workspace.standing({"door": True}, state) == {"door": workspace.IDLE}
+
+
+def test_a_system_runs_again_after_being_cleared(monkeypatch):
+    reading = Mock(return_value=cache.Reading(pd.DataFrame(), [], None))
+    answered(monkeypatch, reading)
+    state = {}
+    for round_number in range(3):
+        assert settled("door", [upload(data=b"%d" % round_number)], state).state == workspace.READY
+        assert set(workspace.runs(state)) == {"door"}
+        workspace.reset("door", state)
+        assert not workspace.runs(state)
+    assert reading.call_count == 3  # A fresh batch each time, never a replayed one.
+
+
+def test_clearing_one_system_leaves_a_shared_batch_readable_for_the_other(monkeypatch):
+    answered(monkeypatch)
+    state = {}
+    settled("door", [upload()], state)
+    settled("shm", [upload()], state)
+    forgotten = []
+    monkeypatch.setattr(workspace.cache, "forget", forgotten.append)
+    workspace.reset("door", state)
+    assert not forgotten  # SHM is still holding the same files.
+    workspace.reset("shm", state)
+    assert len(forgotten) == 1
+
+
+def test_a_system_that_finished_while_you_were_elsewhere_reaches_the_handoff(monkeypatch):
+    finish = threading.Event()
+
+    def held(*args):
+        finish.wait(20)
+        return cache.Reading(pd.DataFrame(), [], None)
+
+    answered(monkeypatch, held)
+    state = {}
+    assert workspace.assess("shm", [upload("stress.csv")], state).state in workspace.ON_QUEUE
+    finish.set()
+    wait([jobs.jobs(state)["shm"].future], timeout=20)
+    # The reader is on another system, so nothing asks SHM for its answer again.
+    assert not workspace.runs(state)
+    workspace.collect(state)
+    assert set(workspace.runs(state)) == {"shm"}
+
+
+def test_a_failed_run_is_never_collected_into_the_handoff(monkeypatch):
+    monkeypatch.setattr(workspace.cache, "reading", Mock(side_effect=ValueError("wrong layout")))
+    state = {}
+    assert settled("door", [upload(data=b"bad")], state).state == workspace.FAILED
+    workspace.collect(state)
+    assert not workspace.runs(state)
+
+
+def test_a_failed_batch_shows_on_the_board_and_is_reported_once(monkeypatch):
+    reading = Mock(side_effect=ValueError("wrong layout"))
+    monkeypatch.setattr(workspace.cache, "reading", reading)
+    state, files = {}, [upload(data=b"bad")]
+    assert settled("door", files, state).state == workspace.FAILED
+    assert settled("door", files, state).state == workspace.FAILED
+    assert reading.call_count == 1
+    assert workspace.standing({"door": True}, state) == {"door": workspace.FAILED}
 
 
 def test_clearing_one_system_preserves_the_others():
@@ -67,9 +222,9 @@ def test_clearing_one_system_preserves_the_others():
 
 def test_evidence_failure_preserves_result_but_is_never_reported_clear(monkeypatch):
     monkeypatch.setattr(workspace.cache, "reading", lambda *args: cache.Reading(pd.DataFrame(), [], None))
-    monkeypatch.setattr(workspace.cache, "_staged", lambda *args: [])
+    monkeypatch.setattr(workspace.cache, "staged", lambda *args: [])
     monkeypatch.setattr(workspace.services, "review_report", Mock(side_effect=RuntimeError("broken")))
-    result = workspace.assess("shm", [upload()], {})
+    result = settled("shm", [upload()], {}).run
     assert result.report is None
     name, payload = handoff.build({"shm": result})
     with zipfile.ZipFile(BytesIO(payload)) as archive:
