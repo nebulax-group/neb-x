@@ -10,6 +10,7 @@ Panels are plain dicts, not a type of ours, so the app can draw them without
 importing this subsystem. The shapes are documented in ``src/app/services.py``.
 """
 
+import math
 from pathlib import Path
 
 import numpy as np
@@ -17,12 +18,22 @@ import numpy as np
 from .config import (
     CONCENTRATION_BANDS,
     FAILURE_DAMAGE,
+    RECOMMENDATIONS,
+    RECOMMENDATION_SCOPE,
+    RUNS_REMAINING_ALERT,
+    SEVERITY_CAUTION,
+    SEVERITY_CLEAR,
+    SEVERITY_DANGER,
     TRACE_TARGET_POINTS,
 )
 from .dataset import read_stress_series
 from .features import cycle_damage, extract_cycles
 from .model import DamageModel
 from .predict import load_model
+
+VERDICT_HEADLINE = "{damage:.0%} of fatigue life used"
+VERDICT_DETAIL = "Room for {runs} more runs like this one. Worst of {count} files."
+RUNS_UNLIMITED = "No limit"
 
 BULLET_TITLE = "Fatigue life used"
 BULLET_CAPTION = "Fatigue life runs out at 1.00. The gap to the marker is what is left."
@@ -100,18 +111,33 @@ def _concentration(damage: np.ndarray) -> list[dict]:
     return rows
 
 
-def _runs_remaining(damage: float) -> str:
+def runs_remaining(damage: float) -> float:
     """Further repeats of this recording the structure can still absorb.
 
     The damage already counted is spent, so this is ``(1 - D) / D`` and not
     ``1 / D`` — the latter counts the run that has just been measured.
     """
     if damage <= 0:
-        return "\u2014"
+        return math.inf
+    return max(0.0, (FAILURE_DAMAGE - damage) / damage)
+
+
+def format_runs(runs: float) -> str:
+    return RUNS_UNLIMITED if math.isinf(runs) else f"{runs:,.1f}" if runs < 100 else f"{runs:,.0f}"
+
+
+def severity(damage: float) -> str:
+    """How urgent this reading is, derived from Miner's rule and nothing else.
+
+    Failure at D >= 1 is the only threshold the Info Kit defines (1.3.1). The middle
+    step is that same threshold read forward: with under one run of margin left, the
+    next recording of this duty is the one that reaches it.
+    """
     if damage >= FAILURE_DAMAGE:
-        return "0"
-    runs = (FAILURE_DAMAGE - damage) / damage
-    return f"{runs:,.1f}" if runs < 100 else f"{runs:,.0f}"
+        return SEVERITY_DANGER
+    if runs_remaining(damage) < RUNS_REMAINING_ALERT:
+        return SEVERITY_CAUTION
+    return SEVERITY_CLEAR
 
 
 def explain(inputs: list[Path], model: DamageModel | None = None) -> list[dict]:
@@ -140,8 +166,22 @@ def explain(inputs: list[Path], model: DamageModel | None = None) -> list[dict]:
 
     name, series, cycles, damage = worst
     per_cycle = cycle_damage(cycles, model.exponent)
+    next_steps = RECOMMENDATIONS[severity(damage)]
 
     return [
+        {
+            "kind": "verdict",
+            "subject": name,
+            "headline": VERDICT_HEADLINE.format(damage=damage),
+            "severity": severity(damage),
+            "recommendation": {
+                "title": next_steps["title"].format(file=name),
+                "steps": (*next_steps["steps"], RECOMMENDATION_SCOPE),
+            },
+            "detail": VERDICT_DETAIL.format(
+                runs=format_runs(runs_remaining(damage)), count=len(bullet_rows)
+            ),
+        },
         {
             "kind": "bullet",
             "title": BULLET_TITLE,
@@ -163,7 +203,7 @@ def explain(inputs: list[Path], model: DamageModel | None = None) -> list[dict]:
                 },
                 {
                     "label": "Recordings left",
-                    "value": _runs_remaining(damage),
+                    "value": format_runs(runs_remaining(damage)),
                     "detail": "more runs like this one before D = 1.00",
                 },
                 {

@@ -1,6 +1,6 @@
 @echo off
-REM Thin wrapper: check the prediction CSVs, creating or refreshing .venv first.
-REM See src\submission\validate.py.
+REM Thin wrapper: fit the SHM fatigue curve, creating or refreshing .venv first.
+REM See src\shm\train.py.
 setlocal
 cd /d "%~dp0.."
 
@@ -12,8 +12,8 @@ if not exist ".venv" (
 set "VENV_PY=.venv\Scripts\python.exe"
 set "STAMP=.venv\.requirements-sha"
 
-REM %VENV_PY% is unquoted deliberately: cmd cannot parse a quoted path inside a
-REM for /f command string, and the relative path it holds has no spaces in it.
+REM The path is left unquoted: cmd cannot parse a quoted path inside a for /f
+REM command string, and the relative path it holds has no spaces in it.
 for /f "delims=" %%H in ('%VENV_PY% -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('requirements.txt').read_bytes()).hexdigest())"') do set "WANT=%%H"
 set "HAVE="
 if exist "%STAMP%" set /p HAVE=<"%STAMP%"
@@ -29,13 +29,13 @@ goto run
 :install
 echo installing requirements ...
 "%VENV_PY%" -m pip install -r requirements.txt --quiet || exit /b 1
-REM Parenthesised so the redirect lands on set /p rather than on echo, which
-REM otherwise writes "ECHO is on." to the stamp and the hash to the screen.
+REM Parenthesised: a leading redirect binds to echo, not to set /p, and writes
+REM "ECHO is on." into the stamp instead of the hash.
 (echo|set /p="%WANT%")>"%STAMP%"
 
 :run
 echo.
-REM No arguments sweeps every subsystem and skips the ones nobody has produced yet;
-REM a path checks that one file. The module decides, not this script.
-"%VENV_PY%" -m src.submission.validate %*
+REM Pass --output PATH through to write the checkpoint somewhere other than the default;
+REM the module owns that default, not this script.
+"%VENV_PY%" -m src.shm.train %*
 exit /b %errorlevel%

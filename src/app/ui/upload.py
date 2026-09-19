@@ -9,7 +9,7 @@ from typing import Any
 
 import streamlit as st
 
-from src.app.config import UPLOAD_HELP, UPLOAD_PROMPT, UPLOAD_WAITING
+from src.app.config import UPLOAD_HELP, UPLOAD_PROMPT, UPLOAD_REQUIREMENTS, UPLOAD_WAITING
 from src.common.config import SUPPORTED_DATA_EXTENSIONS
 
 # Streamlit matches bare extensions, unlike Path.suffix which keeps the dot.
@@ -29,6 +29,7 @@ def render_uploader(subsystem_label: str, subsystem: str) -> list[Any]:
         help=UPLOAD_HELP.format(formats=", ".join(SUPPORTED_DATA_EXTENSIONS)),
         key=f"nx-upload-{subsystem}",
     )
+    st.caption(UPLOAD_REQUIREMENTS[subsystem])
     return uploaded or []
 
 

@@ -126,10 +126,13 @@ neb-x/
 │   ├── common/                   subsystem-agnostic: config (owns every path), io
 │   ├── door/ acv/ rail/ shm/     one package per subsystem, identical file roles
 │   ├── app/                      the non-technical UI (not started)
-│   └── submission/               schema validation, predictions.zip packaging
+│   ├── submission/               schema validation, predictions.zip packaging
+│   └── video/                    renders video/src/ and stitches the pitch video
 ├── tests/                        mirrors src/; door/ and acv/ covered
 ├── scripts/                      thin entry-point wrappers
-└── outputs/                      models, predictions, plots, logs (gitignored, regenerable)
+├── video/                        manim scene sources — see video/README.md
+├── outputs/                      models, predictions, plots, logs (gitignored, regenerable)
+└── submission/                   the folder we send, built by ./submit.sh (gitignored)
 ```
 
 Conventions every new file must follow are in [CLAUDE.md](CLAUDE.md) and

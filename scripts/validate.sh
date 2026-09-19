@@ -12,8 +12,11 @@ if [ ! -d .venv ]; then
     ./install.sh
 fi
 
+# A Windows venv puts activate under Scripts/ rather than bin/.
+ACTIVATE=".venv/bin/activate"
+[ -f "$ACTIVATE" ] || ACTIVATE=".venv/Scripts/activate"
 # shellcheck disable=SC1091
-source .venv/bin/activate
+source "$ACTIVATE"
 
 WANT="$(python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('requirements.txt').read_bytes()).hexdigest())")"
 HAVE="$(cat "$STAMP" 2>/dev/null || true)"

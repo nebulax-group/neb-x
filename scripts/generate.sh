@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Thin wrapper: build the submission folder, creating or refreshing .venv first.
-# See src/submission/package.py.
+# Thin wrapper: write every prediction CSV, creating or refreshing .venv first.
+# See src/submission/generate.py.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -32,5 +32,6 @@ else
 fi
 
 echo
-# Pass --team "Your Name" through; the module decides the layout, not this script.
-exec python -m src.submission.package "$@"
+# Takes no arguments: a partial run would leave one subsystem's CSV older than the
+# rest, which is the state this step exists to make impossible. The module decides.
+exec python -m src.submission.generate

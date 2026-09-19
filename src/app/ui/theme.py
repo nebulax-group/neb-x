@@ -308,6 +308,530 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     color: var(--nx-chalk);
 }
 
+/* ── Failure ──────────────────────────────────────────────────────────── */
+
+/* What a run leaves behind when it produced nothing. It keeps the geometry of the
+   readout and the verdict so it reads as the same instrument, and none of their
+   colour: green, amber and red carry a subsystem's judgement about a train, and the
+   wrong file in the uploader is not a condition of the train. Painting this red would
+   be the page inventing an alarm, and would teach the reader to discount the real one. */
+.nx-failure {
+    margin: 0.2rem 0 0.35rem;
+    padding: 1.15rem 1.3rem 1.25rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-left: 3px solid var(--nx-chalk-dim);
+    border-radius: 3px;
+}
+
+/* Hollow rather than dimly filled. The board's dormant lamp sits among lit ones and
+   only has to be the darker of them; this one is alone on the page and has to read as
+   out on its own, so it is drawn as a ring at a contrast that survives being alone. */
+.nx-lamp.nx-lamp-out {
+    background: transparent;
+    box-shadow: inset 0 0 0 2px var(--nx-chalk-dim);
+}
+
+.stApp p.nx-failure-headline {
+    margin: 0.75rem 0 0;
+    font-size: clamp(1.2rem, 1rem + 0.8vw, 1.5rem);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: var(--nx-chalk);
+}
+
+.stApp p.nx-failure-explain {
+    margin: 0.5rem 0 0;
+    max-width: 58ch;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--nx-chalk-dim);
+}
+
+.nx-failure-facts {
+    display: grid;
+    gap: 0.9rem;
+    margin: 1.15rem 0 0;
+}
+
+.nx-failure-facts dt {
+    font-family: %(mono)s;
+    font-size: 0.64rem;
+    font-weight: 500;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--nx-chalk-dim);
+}
+
+.nx-failure-facts dd {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.35rem 0 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--nx-chalk);
+}
+
+.nx-failure-more {
+    font-family: %(mono)s;
+    font-size: 0.72rem;
+    color: var(--nx-chalk-dim);
+}
+
+/* The subsystem's own sentence, inset on the raised ground so it reads as something
+   quoted back rather than as the page speaking. Mono for the reason a filename is:
+   it is a value that was reported, and its exact characters are the point. */
+.nx-failure-report {
+    margin: 1.15rem 0 0;
+    padding: 0.8rem 0.95rem;
+    background: var(--nx-deck-high);
+    border-radius: 3px;
+}
+
+.stApp p.nx-failure-report-caption, .stApp p.nx-failure-next-caption {
+    margin: 0;
+    font-family: %(mono)s;
+    font-size: 0.64rem;
+    font-weight: 500;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--nx-chalk-dim);
+}
+
+/* A path or a column name has no spaces to break at, and the panel is narrow on a
+   phone; without this the one line the reader might copy runs off the side. */
+.stApp p.nx-failure-report-text {
+    margin: 0.4rem 0 0;
+    font-family: %(mono)s;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--nx-chalk-dim);
+    overflow-wrap: anywhere;
+}
+
+/* Below a rule, because it answers a different question from everything above it:
+   not what happened, but what to do instead. */
+.nx-failure-next {
+    margin: 1.25rem 0 0;
+    padding: 1.05rem 0 0;
+    border-top: 1px solid var(--nx-hairline);
+}
+
+.stApp ul.nx-failure-options {
+    margin: 0.55rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.stApp .nx-failure-options li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.15rem 0.75rem;
+    margin: 0;
+    padding: 0.35rem 0;
+}
+
+.nx-failure-option-name {
+    min-width: 8.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--nx-chalk);
+}
+
+.nx-failure-option-blurb {
+    flex: 1 1 18ch;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--nx-chalk-dim);
+}
+
+.stApp p.nx-failure-next-hint {
+    margin: 0.75rem 0 0;
+    font-size: 0.87rem;
+    line-height: 1.55;
+    color: var(--nx-chalk-dim);
+}
+
+/* ── Severity ─────────────────────────────────────────────────────────── */
+
+/* A severity reaches the page as a class a subsystem named, and its only job is to
+   bind one variable. Every component below reads --nx-sev through a fallback, so a
+   severity the palette does not cover renders neutral instead of unstyled, and these
+   rules never have to compete on specificity with the components that use them. */
+.nx-sev-clear { --nx-sev: var(--nx-clear); }
+.nx-sev-caution { --nx-sev: var(--nx-caution); }
+.nx-sev-danger { --nx-sev: var(--nx-danger); }
+
+/* ── Verdict ──────────────────────────────────────────────────────────── */
+
+/* The card ground stays --nx-deck for every severity. A severity-tinted ground was
+   tried and fails WCAG AA: --nx-danger reads 4.21:1 on its own 10%% tint and 4.05:1
+   on --nx-deck-high, against 4.65:1 on --nx-deck. The colour carries on the rule,
+   the lamp and the word, all of which sit on the one ground that clears the bar. */
+.nx-verdict {
+    margin: 0.2rem 0 0.35rem;
+    padding: 1.15rem 1.3rem 1.25rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-left: 3px solid var(--nx-sev, var(--nx-chalk-dim));
+    border-radius: 3px;
+}
+
+.nx-verdict-flag {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nx-verdict-lamp {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%%;
+    background: var(--nx-sev, var(--nx-chalk-dim));
+}
+
+.nx-verdict-word {
+    font-family: %(mono)s;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--nx-sev, var(--nx-chalk-dim));
+}
+
+.nx-verdict-subject {
+    margin-left: auto;
+    padding: 0.14rem 0.45rem;
+    font-family: %(mono)s;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--nx-instrument);
+    background: var(--nx-instrument-wash);
+    border: 1px solid var(--nx-hairline-strong);
+    border-radius: 2px;
+}
+
+.stApp p.nx-verdict-headline {
+    margin: 0.75rem 0 0;
+    font-size: clamp(1.35rem, 1.05rem + 1.1vw, 1.75rem);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--nx-chalk);
+}
+
+.stApp p.nx-verdict-detail {
+    margin: 0.5rem 0 0;
+    max-width: 58ch;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--nx-chalk-dim);
+}
+
+/* Next steps sit with the answer, with enough room for instructions on a phone. */
+.nx-recommendation {
+    margin: 0 0 0.8rem;
+    padding: 1rem 1.3rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-left: 3px solid var(--nx-instrument);
+    border-radius: 3px;
+    overflow-wrap: anywhere;
+}
+
+.nx-failure-report summary {
+    display: list-item;
+    padding: 0.6rem 0;
+    min-height: 44px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--nx-chalk);
+}
+
+.nx-failure-report summary:focus-visible {
+    outline: 2px solid var(--nx-instrument);
+    outline-offset: 4px;
+}
+
+.nx-failure-recovery {
+    margin: 1.15rem 0 0;
+    padding: 0.95rem;
+    background: var(--nx-instrument-wash);
+    border-left: 2px solid var(--nx-instrument);
+    border-radius: 3px;
+}
+
+.stApp p.nx-failure-recovery-text {
+    margin: 0.5rem 0 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--nx-chalk);
+}
+
+.nx-failure .nx-panel-subject {
+    max-width: 100%%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.nx-recommendation-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--nx-instrument);
+}
+
+.nx-recommendation-subject {
+    margin-left: auto;
+    max-width: 100%%;
+    font-family: %(mono)s;
+    font-size: 0.75rem;
+    color: var(--nx-chalk-dim);
+}
+
+.stApp p.nx-recommendation-title {
+    margin: 0.65rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--nx-chalk);
+}
+
+.stApp .nx-recommendation-steps {
+    margin: 0;
+    padding-left: 1.3rem;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--nx-chalk);
+}
+
+.stApp .nx-recommendation-steps li + li { margin-top: 0.5rem; }
+.nx-recommendation-steps li::marker { color: var(--nx-instrument); }
+
+/* ── Mode switch ──────────────────────────────────────────────────────── */
+
+.st-key-nx-view-toggle { margin: 0 0 1.3rem; }
+
+[data-testid="stButtonGroup"] { gap: 0.3rem; }
+
+/* Matches the active button too, which carries the same prefix; the rule below then
+   overrides it. 44px is the touch target the numbered deck rail already uses. */
+.st-key-nx-view-toggle [data-testid*="stBaseButton-segmented_control"] {
+    min-height: 44px;
+    padding: 0 1.2rem;
+    font-family: %(mono)s;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--nx-chalk-dim);
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-radius: 2px;
+    transition: background-color 160ms ease-out, border-color 160ms ease-out,
+                color 160ms ease-out;
+}
+
+.st-key-nx-view-toggle
+[data-testid*="stBaseButton-segmented_control"]:hover {
+    color: var(--nx-chalk);
+    border-color: var(--nx-hairline-strong);
+}
+
+.st-key-nx-view-toggle [data-testid*="segmented_controlActive"] {
+    color: var(--nx-abyss);
+    background: var(--nx-instrument);
+    border-color: var(--nx-instrument);
+}
+
+/* The two-button fallback, for a Streamlit without st.segmented_control. */
+.st-key-nx-view-toggle .stButton button {
+    min-height: 44px;
+    font-family: %(mono)s;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+/* ── Event strip ──────────────────────────────────────────────────────── */
+
+/* Cab height is shared by both ends; numbered controls stay at least 44px. */
+[class*="st-key-nx-strip-"] {
+    --nx-strip-height: 38px;
+    --nx-strip-pad-y: 0.85rem;
+    --nx-strip-pad-x: 0.9rem;
+    margin: 1.15rem 0 0;
+    padding: var(--nx-strip-pad-y) var(--nx-strip-pad-x);
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-radius: 3px;
+}
+
+/* The ends frame the recording; controls below wrap without shrinking their targets. */
+.nx-strip-ends {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+[class*="st-key-nx-strip-"] [role="radiogroup"] {
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"] {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin: 0;
+    padding: 4px 6px;
+    color: var(--nx-chalk);
+    background: var(--nx-deck-high);
+    border-bottom: 3px solid var(--nx-sev, var(--nx-chalk-dim));
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+/* Keep the native input available to keyboards and assistive technology, while
+   the numbered block itself carries its checked and focus states. */
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"] > div > div:first-child {
+    display: none;
+}
+
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"] > div {
+    padding: 0;
+    gap: 0;
+}
+
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"] p {
+    color: inherit;
+    font-family: %(mono)s;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"]:has(input:checked) {
+    box-shadow: inset 0 0 0 2px currentColor;
+}
+
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"][data-focus-visible] {
+    outline: 2px solid var(--nx-instrument);
+    outline-offset: 2px;
+}
+
+/* A cab at each end of the run, nose outwards. It says which way to read before
+   the label is read, and it marks where the recording starts and stops. The cells
+   between are consecutive events in one stream: not carriages, not door numbers,
+   and not a position on any train. */
+.nx-strip-end {
+    flex: none;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.45rem;
+    height: var(--nx-strip-height);
+    color: var(--nx-chalk-dim);
+}
+
+/* The cab stays outermost at both ends, so the label always sits inboard of it. */
+.nx-strip-tail { flex-direction: row-reverse; }
+
+/* Height only: the width follows from the drawing's own aspect, so the cab keeps its
+   proportions without this file restating a number that lives in the SVG. */
+.nx-strip-cab {
+    flex: none;
+    width: auto;
+    height: var(--nx-strip-height);
+}
+
+.nx-strip-tail .nx-strip-cab { transform: scaleX(-1); }
+
+.nx-cab-shell {
+    fill: var(--nx-deck-high);
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.nx-cab-glass { fill: currentColor; }
+
+/* Dimmed to sit behind the windows, but only to 0.65: below that the solebar stops
+   clearing 3:1 against the body it is drawn on. */
+.nx-cab-solebar {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
+    opacity: 0.65;
+}
+
+/* The one lit thing on the strip that is not a severity, and the accent is reserved
+   for the app's own furniture, so it cannot be mistaken for a signal aspect. */
+.nx-cab-lamp { fill: var(--nx-instrument); }
+
+.nx-strip-end-label {
+    max-width: 5.4em;
+    padding-bottom: 4px;
+    font-family: %(mono)s;
+    font-size: 0.64rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    line-height: 1.25;
+    text-transform: uppercase;
+    color: var(--nx-chalk-dim);
+}
+
+.nx-strip-detail {
+    font-family: %(mono)s;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--nx-chalk);
+}
+
+.stApp p.nx-strip-detail {
+    margin: 0.35rem 0 0;
+    overflow-wrap: anywhere;
+}
+
+.stApp p.nx-strip-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.15rem;
+    margin: 0.75rem 0 0;
+    font-size: 0.78rem;
+    color: var(--nx-chalk-dim);
+}
+
+.nx-strip-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.nx-strip-chip {
+    width: 15px;
+    height: 11px;
+    background: var(--nx-deck-high);
+    border-bottom: 3px solid var(--nx-sev, var(--nx-chalk-dim));
+    border-radius: 2px 2px 0 0;
+}
+
+.nx-strip-chip.nx-sev-caution, .nx-strip-chip.nx-sev-danger {
+    background: var(--nx-sev);
+}
+
 /* ── Explanation ──────────────────────────────────────────────────────── */
 
 /* Streamlit ships rules for h1-h3 and p that beat a bare class selector, so every
@@ -476,6 +1000,25 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     .nx-chip { display: none; }
     [class*="st-key-nx-card-"] { min-height: 0; }
 
+    [class*="st-key-nx-strip-"] { --nx-strip-height: 30px; }
+
+    /* The labels stay, under their cabs rather than beside them: side by side the two
+       ends take half the width of a phone, and what is left is too narrow to read as
+       a run at all. */
+    .nx-strip-end, .nx-strip-tail {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2rem;
+        height: auto;
+    }
+
+    .nx-strip-end-label {
+        max-width: 4.4em;
+        padding-bottom: 0;
+        letter-spacing: 0.06em;
+        text-align: center;
+    }
+
     /* Streamlit stacks columns on a narrow screen, which would turn the rail into six
        full-height buttons and cost more scrolling than the deck saves. The counter
        above already says which step this is, so only back and next are kept. */
@@ -484,7 +1027,10 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 
 @media (prefers-reduced-motion: reduce) {
     .stDownloadButton button, .stButton button,
-    [class*="st-key-nx-card-"] { transition: none; }
+    [class*="st-key-nx-card-"],
+    .st-key-nx-view-toggle [data-testid*="stBaseButton-segmented_control"] {
+        transition: none;
+    }
 }
 """ % {"sans": SANS_STACK, "mono": MONO_STACK}
 
