@@ -664,27 +664,17 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 
 /* ── Event strip ──────────────────────────────────────────────────────── */
 
-/* Cab height is shared by both ends; numbered controls stay at least 44px. */
+/* Keep selection separate from severity: cyan picks the cycle, red flags it. */
 [class*="st-key-nx-strip-"] {
-    --nx-strip-height: 38px;
-    --nx-strip-pad-y: 0.85rem;
-    --nx-strip-pad-x: 0.9rem;
     margin: 1.15rem 0 0;
-    padding: var(--nx-strip-pad-y) var(--nx-strip-pad-x);
+    padding: 1.1rem;
     background: var(--nx-deck);
     border: 1px solid var(--nx-hairline);
     border-radius: 3px;
 }
 
-/* The ends frame the recording; controls below wrap without shrinking their targets. */
-.nx-strip-ends {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
 [class*="st-key-nx-strip-"] [role="radiogroup"] {
-    gap: 6px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
@@ -693,15 +683,20 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 48px;
+    min-height: 48px;
     margin: 0;
     padding: 4px 6px;
     color: var(--nx-chalk);
     background: var(--nx-deck-high);
     border-bottom: 3px solid var(--nx-sev, var(--nx-chalk-dim));
-    border-radius: 2px;
+    border-radius: 4px;
     cursor: pointer;
+    transition: box-shadow 150ms ease, filter 150ms ease;
+}
+
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"]:hover {
+    filter: brightness(1.15);
 }
 
 /* Keep the native input available to keyboards and assistive technology, while
@@ -718,78 +713,140 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 [class*="st-key-nx-strip-"] [data-testid="stRadioOption"] p {
     color: inherit;
     font-family: %(mono)s;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 
 [class*="st-key-nx-strip-"] [data-testid="stRadioOption"]:has(input:checked) {
-    box-shadow: inset 0 0 0 2px currentColor;
+    box-shadow: 0 0 0 2px var(--nx-abyss), 0 0 0 5px var(--nx-instrument);
+}
+
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"]:has(input:checked)::after {
+    content: "";
+    position: absolute;
+    top: -9px;
+    right: -8px;
+    width: 19px;
+    height: 19px;
+    border-radius: 50%%;
+    background: var(--nx-instrument);
+    pointer-events: none;
+}
+
+[class*="st-key-nx-strip-"] [data-testid="stRadioOption"]:has(input:checked)::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    top: -6px;
+    right: -2px;
+    width: 5px;
+    height: 9px;
+    border-right: 2px solid var(--nx-abyss);
+    border-bottom: 2px solid var(--nx-abyss);
+    transform: rotate(45deg);
+    pointer-events: none;
 }
 
 [class*="st-key-nx-strip-"] [data-testid="stRadioOption"][data-focus-visible] {
     outline: 2px solid var(--nx-instrument);
-    outline-offset: 2px;
+    outline-offset: 7px;
 }
 
-/* A cab at each end of the run, nose outwards. It says which way to read before
-   the label is read, and it marks where the recording starts and stops. The cells
-   between are consecutive events in one stream: not carriages, not door numbers,
-   and not a position on any train. */
-.nx-strip-end {
-    flex: none;
+/* A separate readout gives the active cycle a stable, readable hierarchy. */
+.nx-cycle-detail {
+    padding: 1.25rem;
+    margin: 0.25rem 0 0.75rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline-strong);
+    border-left: 4px solid var(--nx-sev, var(--nx-instrument));
+    border-radius: 6px;
+}
+
+.nx-cycle-heading {
     display: flex;
-    align-items: flex-end;
-    gap: 0.45rem;
-    height: var(--nx-strip-height);
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.nx-cycle-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--nx-instrument);
+}
+
+.stApp h3.nx-cycle-title {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0.35rem 0 0;
+    padding: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--nx-chalk);
+}
+
+.nx-cycle-operation {
+    font-size: 1rem;
+    font-weight: 400;
     color: var(--nx-chalk-dim);
 }
 
-/* The cab stays outermost at both ends, so the label always sits inboard of it. */
-.nx-strip-tail { flex-direction: row-reverse; }
-
-/* Height only: the width follows from the drawing's own aspect, so the cab keeps its
-   proportions without this file restating a number that lives in the SVG. */
-.nx-strip-cab {
-    flex: none;
-    width: auto;
-    height: var(--nx-strip-height);
+.nx-cycle-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--nx-sev, var(--nx-hairline-strong));
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--nx-sev, var(--nx-chalk));
 }
 
-.nx-strip-tail .nx-strip-cab { transform: scaleX(-1); }
-
-.nx-cab-shell {
-    fill: var(--nx-deck-high);
-    stroke: currentColor;
-    stroke-width: 1.7;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+.nx-cycle-status::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%%;
+    background: currentColor;
 }
 
-.nx-cab-glass { fill: currentColor; }
-
-/* Dimmed to sit behind the windows, but only to 0.65: below that the solebar stops
-   clearing 3:1 against the body it is drawn on. */
-.nx-cab-solebar {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.4;
-    opacity: 0.65;
+.nx-cycle-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 1.1rem 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--nx-hairline);
 }
 
-/* The one lit thing on the strip that is not a severity, and the accent is reserved
-   for the app's own furniture, so it cannot be mistaken for a signal aspect. */
-.nx-cab-lamp { fill: var(--nx-instrument); }
+.nx-cycle-fields dt {
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--nx-chalk-dim);
+}
 
-.nx-strip-end-label {
-    max-width: 5.4em;
-    padding-bottom: 4px;
+.nx-cycle-fields dd {
+    margin: 0;
     font-family: %(mono)s;
-    font-size: 0.64rem;
+    font-size: 1rem;
     font-weight: 500;
-    letter-spacing: 0.1em;
-    line-height: 1.25;
-    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+    color: var(--nx-chalk);
+}
+
+.nx-cycle-fields dd span {
+    display: block;
+    margin-top: 0.35rem;
+    font-family: %(sans)s;
+    font-size: 0.8rem;
+    font-weight: 400;
     color: var(--nx-chalk-dim);
 }
 
@@ -1000,25 +1057,6 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
     .nx-chip { display: none; }
     [class*="st-key-nx-card-"] { min-height: 0; }
 
-    [class*="st-key-nx-strip-"] { --nx-strip-height: 30px; }
-
-    /* The labels stay, under their cabs rather than beside them: side by side the two
-       ends take half the width of a phone, and what is left is too narrow to read as
-       a run at all. */
-    .nx-strip-end, .nx-strip-tail {
-        flex-direction: column;
-        align-items: center;
-        gap: 0.2rem;
-        height: auto;
-    }
-
-    .nx-strip-end-label {
-        max-width: 4.4em;
-        padding-bottom: 0;
-        letter-spacing: 0.06em;
-        text-align: center;
-    }
-
     /* Streamlit stacks columns on a narrow screen, which would turn the rail into six
        full-height buttons and cost more scrolling than the deck saves. The counter
        above already says which step this is, so only back and next are kept. */
@@ -1026,6 +1064,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    [class*="st-key-nx-strip-"] [data-testid="stRadioOption"],
     .stDownloadButton button, .stButton button,
     [class*="st-key-nx-card-"],
     .st-key-nx-view-toggle [data-testid*="stBaseButton-segmented_control"] {

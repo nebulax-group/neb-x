@@ -1,5 +1,20 @@
 # Wayne — Change Log
 
+### 2026-09-19 — Door cycle selection and detail card polish
+
+Removed the decorative train ends. Selected cycles now have a cyan outline and
+checkmark, independent of their normal/abnormal colours. Door strip cells supply
+optional structured fields for a selection card: cycle, operation, status, start,
+end and elapsed duration. Controller timestamps are formatted for display with
+readable dates and exact milliseconds; exported prediction timestamps stay verbatim.
+The generic strip renderer still supports plain `detail` text from other producers.
+
+Validation: 21 focused tests passed, including midnight and millisecond formatting;
+headless browser checks verified normal/abnormal selection, keyboard navigation,
+removed train graphics and the 375px layout. Screenshots: `outputs/logs/door-refresh-*.png`.
+
+**Affects:** Jou (Door explanation cells), Wayne (shared strip renderer/styles).
+
 ### 2026-09-19 — Finish upload recovery, Door selection and assessment guidance
 
 Continued the partial app work. `services.run_prediction` now asks an optional

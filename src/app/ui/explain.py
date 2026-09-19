@@ -40,10 +40,9 @@ from src.app.config import (
     STEP_COUNTER,
     STEP_NEXT,
     STEP_NUMBER,
-    STRIP_HEAD_LABEL,
     STRIP_PICK_HELP,
     STRIP_PICK_LABEL,
-    STRIP_TAIL_LABEL,
+    STRIP_SELECTED_LABEL,
     TRACE_PLOT_HEIGHT,
 )
 
@@ -79,27 +78,15 @@ _PANEL_HEAD = """<div class="nx-deck-status">
 _PANEL_CAPTION = '<p class="nx-panel-caption">{caption}</p>'
 _PANEL_SUBJECT = '<span class="nx-panel-subject">{subject}</span>'
 
-_STRIP = """<div class="nx-strip-ends">
-<span class="nx-strip-end nx-strip-head">{cab}<span class="nx-strip-end-label">{head}</span></span>
-<span class="nx-strip-end nx-strip-tail">{cab}<span class="nx-strip-end-label">{tail}</span></span>
-</div>"""
 _STRIP_KEY = '<span class="nx-strip-key"><span class="nx-strip-chip {state}"></span>{label}</span>'
-
-# A driving cab in profile, nose outwards, drawn once and mirrored for the far end.
-# Inline SVG rather than a character or an emoji, which the masthead mark avoids for
-# the same reason: those render differently on every machine the demo is watched on.
-# Colour is left to the stylesheet through currentColor.
-_STRIP_CAB = (
-    '<svg class="nx-strip-cab" viewBox="0 0 44 38" preserveAspectRatio="xMidYMax meet"'
-    ' aria-hidden="true" focusable="false">'
-    '<path class="nx-cab-shell" d="M44 34.4H10.2C6.2 34.4 3 31.2 3 27.2V21.8'
-    'L13.4 5.2C14 4.2 15 3.6 16.2 3.5L44 3.4"/>'
-    '<path class="nx-cab-glass" d="M7.8 18.6L14.6 7.6H20.2V18.6Z"/>'
-    '<rect class="nx-cab-glass" x="23.6" y="7.6" width="17.6" height="8.4" rx="1.3"/>'
-    '<path class="nx-cab-solebar" d="M5.2 25.4H44"/>'
-    '<circle class="nx-cab-lamp" cx="7.6" cy="29.8" r="2.1"/>'
-    "</svg>"
-)
+_STRIP_DETAIL = """<section class="nx-cycle-detail {state}" role="status" aria-live="polite" aria-atomic="true">
+<div class="nx-cycle-heading"><div>
+<span class="nx-cycle-eyebrow">{selected}</span>
+<h3 class="nx-cycle-title"><span>{title}</span><span class="nx-cycle-operation"> · {subtitle}</span></h3>
+</div><span class="nx-cycle-status">{status}</span></div>
+<dl class="nx-cycle-fields">{fields}</dl>
+</section>"""
+_STRIP_FIELD = '<div><dt>{label}</dt><dd>{value}<span>{detail}</span></dd></div>'
 
 
 def _state_class(state: Any) -> str:
@@ -364,7 +351,6 @@ def _render_strip(panel: dict[str, Any]) -> None:
     interaction. The cached reading is reused when selection changes. Keys include
     the content so a different recording cannot inherit an unrelated cycle number.
     """
-    details = [str(cell.get("detail", "")) for cell in panel["cells"]]
     fingerprint = hashlib.sha256(json.dumps(panel, sort_keys=True, default=str).encode()).hexdigest()
     container_key = f"nx-strip-{fingerprint}"
     selector = f".st-key-{container_key} [data-testid=stRadioGroup] > div"
@@ -387,14 +373,6 @@ def _render_strip(panel: dict[str, Any]) -> None:
     )
     st.markdown(f"<style>{colours}</style>", unsafe_allow_html=True)
     with st.container(key=container_key):
-        st.markdown(
-            _STRIP.format(
-                cab=_STRIP_CAB,
-                head=escape(str(panel.get("head", STRIP_HEAD_LABEL))),
-                tail=escape(str(panel.get("tail", STRIP_TAIL_LABEL))),
-            ),
-            unsafe_allow_html=True,
-        )
         selected = st.radio(
             STRIP_PICK_LABEL,
             range(len(panel["cells"])),
@@ -406,11 +384,28 @@ def _render_strip(panel: dict[str, Any]) -> None:
             help=STRIP_PICK_HELP,
             persist_state="session",
         )
+    st.markdown(f'<p class="nx-strip-legend">{keys}</p>', unsafe_allow_html=True)
+    cell = panel["cells"][selected]
+    if cell.get("fields"):
         st.markdown(
-            f'<p class="nx-strip-detail" role="status" aria-live="polite">{escape(details[selected])}</p>',
+            _STRIP_DETAIL.format(
+                state=_state_class(cell.get("state")),
+                selected=escape(STRIP_SELECTED_LABEL),
+                title=escape(str(cell.get("title", cell["label"]))),
+                subtitle=escape(str(cell.get("subtitle", ""))),
+                status=escape(str(cell.get("status", ""))),
+                fields="".join(
+                    _STRIP_FIELD.format(**{key: escape(str(field.get(key, ""))) for key in ("label", "value", "detail")})
+                    for field in cell["fields"]
+                ),
+            ),
             unsafe_allow_html=True,
         )
-    st.markdown(f'<p class="nx-strip-legend">{keys}</p>', unsafe_allow_html=True)
+    else:
+        st.markdown(
+            f'<p class="nx-strip-detail" role="status" aria-live="polite">{escape(str(cell.get("detail", "")))}</p>',
+            unsafe_allow_html=True,
+        )
 
 
 _RENDERERS = {

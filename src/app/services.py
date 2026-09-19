@@ -23,8 +23,9 @@ optional ``subject`` naming the file it describes. ``kind`` chooses the rest:
              ``value_title`` for the axis.
 ``line``     ``points``: parallel ``(x, y)`` lists; plus ``x_title``, ``y_title``.
 ``strip``    ``cells``: ``label``, ``state`` (a severity, as above), ``detail``, in
-             the order they happened; plus ``legend``: ``state``, ``label``, and
-             ``head`` and ``tail``, a few words naming each end of the run.
+             the order they happened; plus ``legend``: ``state``, ``label``.
+             Cells may supply ``title``, ``subtitle``, ``status`` and ``fields``
+             (``label``, ``value``, ``detail``) for a structured selection readout.
 
 ``severity`` is the one judgement the app will not make for itself. The palette
 reserves three colours for it and paints whichever the subsystem names; what counts

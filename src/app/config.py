@@ -136,13 +136,9 @@ VIEW_LABELS = {VIEW_SIMPLE: "Answer", VIEW_TECHNICAL: "Details"}
 VIEW_PROMPT = "Show"
 VIEW_NO_VERDICT = "This system does not summarise itself yet. Open {view} for the full result."
 
-# The two ends of an event strip, for a subsystem that names neither. About time and
-# never about place: the cells are consecutive events in one recording, and a word
-# like front or rear would claim a position on a train that no dataset here holds.
-STRIP_HEAD_LABEL = "First"
-STRIP_TAIL_LABEL = "Latest"
 STRIP_PICK_LABEL = "Select a cycle"
 STRIP_PICK_HELP = "Click or tap a numbered cycle. Use the arrow keys to move between cycles."
+STRIP_SELECTED_LABEL = "Selected cycle"
 
 STEP_COUNTER = "Step {current} of {total}"
 STEP_BACK = "Back"

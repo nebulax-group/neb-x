@@ -55,7 +55,7 @@ def cycle_app(monkeypatch):
 
 
 def _readout(app):
-    return next(item.value for item in app.markdown if 'class="nx-strip-detail"' in item.value)
+    return next(item.value for item in app.markdown if 'class="nx-cycle-detail ' in item.value or 'class="nx-strip-detail"' in item.value)
 
 
 def test_click_shows_full_cycle_details_and_reuses_inference(cycle_app):
@@ -66,9 +66,12 @@ def test_click_shows_full_cycle_details_and_reuses_inference(cycle_app):
 
     app.radio[0].set_value(2).run()
     assert not app.exception
-    assert "Cycle 3 · Open · Normal" in _readout(app)
-    assert "Start: 10:00:20" in _readout(app)
-    assert "End: 10:00:23" in _readout(app)
+    assert "Cycle 03" in _readout(app)
+    assert "Opening" in _readout(app)
+    assert "Normal" in _readout(app)
+    assert '<dt>Start</dt><dd>10:00:20' in _readout(app)
+    assert '<dt>End</dt><dd>10:00:23' in _readout(app)
+    assert "nx-sev-clear" in _readout(app)
     app.run()
     assert app.radio[0].value == 2
     prediction.assert_called_once()
@@ -106,3 +109,32 @@ def test_cycle_detail_is_escaped():
     assert not app.exception
     assert "&lt;script&gt;" in _readout(app)
     assert "<script>" not in _readout(app)
+
+
+def test_native_timestamps_are_readable_with_exact_milliseconds_and_duration():
+    rows = pd.DataFrame({
+        "prediction": ["Abnormal resistance"],
+        "start_time": ["2023-7-5-0-0-15-5"],
+        "end_time": ["2023-7-5-0-0-18-765"],
+    })
+    original = rows.copy(deep=True)
+    cell = _cells(rows, pd.DataFrame({"operation": ["Close"]}))[0]
+    assert cell["fields"] == [
+        {"label": "Start", "value": "00:00:15.005", "detail": "5 Jul 2023"},
+        {"label": "End", "value": "00:00:18.765", "detail": "5 Jul 2023"},
+        {"label": "Duration", "value": "3.760 s", "detail": "Elapsed time"},
+    ]
+    assert cell["state"] == "danger"
+    pd.testing.assert_frame_equal(rows, original)
+
+
+def test_cycle_spanning_midnight_shows_both_dates():
+    rows = pd.DataFrame({
+        "prediction": ["Normal"],
+        "start_time": ["2023-7-5-23-59-59-900"],
+        "end_time": ["2023-7-6-0-0-0-100"],
+    })
+    fields = _cells(rows, pd.DataFrame({"operation": ["Open"]}))[0]["fields"]
+    assert fields[0]["detail"] == "5 Jul 2023"
+    assert fields[1]["detail"] == "6 Jul 2023"
+    assert fields[2]["value"] == "0.200 s"

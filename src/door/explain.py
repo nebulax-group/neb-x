@@ -8,6 +8,7 @@ Panels are plain dicts, not a type of ours, so the app can draw them without
 importing this subsystem. The shapes are documented in ``src/app/services.py``.
 """
 
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -33,9 +34,6 @@ VERDICT_DETAIL_CLEAR = "Every cycle sits within this door's own normal current."
 STRIP_TITLE = "Every cycle in order"
 STRIP_CAPTION = "One block per open or close. Click a cycle to keep its details in view."
 STRIP_CELL_DETAIL = "Cycle {number} · {operation} · {status}. Start: {start}. End: {end}."
-# The ends of the recording, not ends of a train: this is one door's stream in time.
-STRIP_HEAD = "First cycle"
-STRIP_TAIL = "Latest cycle"
 
 METRICS_TITLE = "What the model measured"
 METRICS_CAPTION = (
@@ -71,19 +69,50 @@ def severity(flags: pd.Series) -> str:
     return SEVERITY_CAUTION
 
 
+def _display_time(raw: str) -> tuple[str, str, datetime | None]:
+    """Format native controller milliseconds without changing submission values."""
+    try:
+        year, month, day, hour, minute, second, millisecond = map(int, raw.split("-"))
+        stamp = datetime(year, month, day, hour, minute, second, millisecond * 1000)
+    except (ValueError, TypeError, AttributeError):
+        return str(raw), "", None
+    return (
+        stamp.strftime("%H:%M:%S.") + f"{millisecond:03d}",
+        f"{stamp.day} {stamp.strftime('%b %Y')}",
+        stamp,
+    )
+
+
 def _cells(rows: pd.DataFrame, bounds: pd.DataFrame) -> list[dict]:
-    return [
-        {
+    cells = []
+    for number, (status, operation, start, end) in enumerate(
+        zip(rows["prediction"], bounds["operation"], rows["start_time"], rows["end_time"]), start=1
+    ):
+        start_time, start_date, start_stamp = _display_time(start)
+        end_time, end_date, end_stamp = _display_time(end)
+        fields = [
+            {"label": "Start", "value": start_time, "detail": start_date},
+            {"label": "End", "value": end_time, "detail": end_date},
+        ]
+        if start_stamp is not None and end_stamp is not None:
+            fields.append({
+                "label": "Duration",
+                "value": f"{(end_stamp - start_stamp).total_seconds():.3f} s",
+                "detail": "Elapsed time",
+            })
+        cells.append({
             "label": f"{number:02d}",
+            "title": f"Cycle {number:02d}",
+            "subtitle": "Opening" if operation == OPERATIONS[0] else "Closing",
+            "status": status,
+            "fields": fields,
             "state": SEVERITY_DANGER if status == LABEL_ABNORMAL else SEVERITY_CLEAR,
             "detail": STRIP_CELL_DETAIL.format(
-                number=number, operation=operation, status=status, start=start, end=end
+                number=number, operation=operation, status=status,
+                start=f"{start_date} {start_time}".strip(), end=f"{end_date} {end_time}".strip(),
             ),
-        }
-        for number, (status, operation, start, end) in enumerate(
-            zip(rows["prediction"], bounds["operation"], rows["start_time"], rows["end_time"]), start=1
-        )
-    ]
+        })
+    return cells
 
 
 def _by_operation(bounds: pd.DataFrame, flags: pd.Series) -> list[dict]:
@@ -145,8 +174,6 @@ def explain(inputs: list[Path]) -> list[dict]:
             "subject": Path(inputs[0]).name,
             "caption": STRIP_CAPTION,
             "cells": _cells(rows, bounds),
-            "head": STRIP_HEAD,
-            "tail": STRIP_TAIL,
             "legend": [
                 {"state": SEVERITY_CLEAR, "label": LABEL_NORMAL},
                 {"state": SEVERITY_DANGER, "label": LABEL_ABNORMAL},
