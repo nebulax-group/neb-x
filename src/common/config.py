@@ -65,9 +65,10 @@ VIDEO_MEDIA_DIR = VIDEO_DIR / "media"
 VIDEO_REQUIREMENTS_PATH = VIDEO_DIR / "requirements.txt"
 STREAMLIT_CONFIG_PATH = REPO_ROOT / ".streamlit" / "config.toml"
 
-# Where packaging looks for the optional write-up: beside the README, named as section
-# 4.2 names it. One file needs no folder of its own.
-WRITE_UP_DIR = REPO_ROOT
+# Where packaging looks for the optional write-up, named as section 4.2 names it. It is
+# a LaTeX document, so its source, and the PDF built from it, live together in a folder
+# of their own rather than leaving build products at the repository root.
+WRITE_UP_DIR = DOCS_DIR / "writeup"
 
 # Where the folder we send is built. It carries the team name and nothing else, so it
 # is made at the root rather than inside a wrapper folder: what gets uploaded is then

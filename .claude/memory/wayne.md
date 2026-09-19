@@ -1,5 +1,25 @@
 # Wayne — Change Log
 
+### 2026-09-19 — the write-up is LaTeX in `docs/writeup/`, and `WRITE_UP_DIR` moved with it
+
+**`src/common/config.py`: `WRITE_UP_DIR` is now `DOCS_DIR / "writeup"`, not `REPO_ROOT`.**
+Packaging looks for `write_up.<pdf|docx|md>` there and nowhere else, so a `write_up.pdf`
+left at the repository root is now ignored.
+
+- The write-up is `docs/writeup/write_up.tex`, built with
+  `latexmk -pdf write_up.tex && latexmk -c` from inside that folder. Source and PDF live
+  together; the `-c` is what keeps the aux files out of git.
+- **The PDF is committed.** `outputs/` is gitignored, so a build product that has to reach
+  whichever machine runs `./submit.sh` cannot live there, and `docs/` is the only place
+  both halves of a LaTeX document can sit side by side.
+- Nothing else reads `WRITE_UP_DIR`. `tests/test_submission_package.py` monkeypatches it to
+  a tmp_path, so the move does not touch the tests.
+- Verified end to end: `python -m src.submission.package --into <tmp>` reports
+  `Optional_Items/write_up.pdf`. The only item still outstanding is the demo video.
+
+`docs/` is otherwise the organisers' words and read-only ([[project-structure]] rule 9).
+`docs/writeup/` is ours, as `docs/superpowers/` already was.
+
 ### 2026-09-19 — `requirements.txt` moved into `scripts/`, and the submission is built at the root
 
 Three changes that reach every machine here. All three were asked for.
