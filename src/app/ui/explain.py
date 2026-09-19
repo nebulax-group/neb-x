@@ -426,18 +426,18 @@ def _has_content(panel: dict[str, Any]) -> bool:
     return True
 
 
-def _goto(index: int) -> None:
+def _goto(index: int, state_key: str) -> None:
     # A callback rather than a return value: Streamlit runs it before the rerun, so the
     # rail and the panel below it always agree about which step is showing.
-    st.session_state[PANEL_STATE_KEY] = index
+    st.session_state[state_key] = index
 
 
-def _current_step(count: int) -> int:
+def _current_step(count: int, state_key: str) -> int:
     """The selected step, clamped: a shorter batch must not strand the index."""
-    return max(0, min(int(st.session_state.get(PANEL_STATE_KEY, 0)), count - 1))
+    return max(0, min(int(st.session_state.get(state_key, 0)), count - 1))
 
 
-def _render_rail(panels: list[dict[str, Any]], index: int) -> None:
+def _render_rail(panels: list[dict[str, Any]], index: int, state_key: str) -> None:
     """The step rail: one numbered cell per panel, plus back and next."""
     count = len(panels)
     st.markdown(
@@ -465,7 +465,7 @@ def _render_rail(panels: list[dict[str, Any]], index: int) -> None:
                         type="primary" if step == index else "secondary",
                         width="stretch",
                         on_click=_goto,
-                        args=(step,),
+                        args=(step, state_key),
                         help=panels[step]["title"],
                     )
 
@@ -486,7 +486,7 @@ def _render_rail(panels: list[dict[str, Any]], index: int) -> None:
                     disabled=spent,
                     width="stretch",
                     on_click=_goto,
-                    args=(target,),
+                    args=(target, state_key),
                 )
 
 
@@ -519,7 +519,7 @@ def render_panel(panel: dict[str, Any]) -> None:
     _render_body(panel)
 
 
-def render(panels: list[dict[str, Any]]) -> None:
+def render(panels: list[dict[str, Any]], scope: str = "default") -> None:
     """Draw the panels as a deck, one step at a time. Silent when there are none."""
     if not panels:
         return
@@ -529,6 +529,7 @@ def render(panels: list[dict[str, Any]]) -> None:
         unsafe_allow_html=True,
     )
 
-    index = _current_step(len(panels))
-    _render_rail(panels, index)
+    state_key = f"{PANEL_STATE_KEY}-{scope}"
+    index = _current_step(len(panels), state_key)
+    _render_rail(panels, index, state_key)
     _render_body(panels[index])

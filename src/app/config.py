@@ -10,7 +10,7 @@ from src.common.config import SUBSYSTEM_LABELS, SUBSYSTEMS
 PAGE_TITLE = "Train Condition Monitoring"
 PAGE_LAYOUT = "centered"
 EYEBROW = "depot diagnostics"
-STANDFIRST = "Add a system's sensor files. Read its condition, then download the result."
+STANDFIRST = "Assess your recordings, review the findings, then prepare one maintenance handoff."
 
 # What each system listens to, in the words of someone who maintains trains rather
 # than someone who wrote the model. Presentation only: a fifth subsystem adds a line
@@ -49,13 +49,31 @@ UPLOAD_REQUIREMENTS = {
 }
 UPLOAD_WAITING = "Add at least one file to run {label}."
 SPINNER_MESSAGE = "Running the {label} model..."
-DOWNLOAD_LABEL = "Download predictions"
 RESULTS_HEADING = "Assessment"
 RECOMMENDATION_HEADING = "What to do next"
 READOUT_CAPTIONS = {
     "system_caption": "System",
     "rows_caption": "Rows returned",
-    "output_caption": "Output file",
+}
+
+HANDOFF_COPY = {
+    "heading": "Maintenance handoff",
+    "intro": "Collect the findings from your current review into one folder to share.",
+    "session": "Latest assessment per system · Kept while this browser session is active. Switching systems keeps your files and results.",
+    "empty": "Assess a recording to prepare a review package.",
+    "count": "{count} review items",
+    "incomplete": "Evidence incomplete",
+    "maintainer": "App maintainer review needed",
+    "warning": "{label}: review evidence is incomplete. The package will state this; it will not report an all-clear.",
+    "missing": "Not assessed / unavailable: ",
+    "metadata": "Add a reference or handoff note (optional)",
+    "reference": "Review / work-order reference",
+    "preparer": "Prepared by",
+    "notes": "Asset, location and handoff notes",
+    "notes_help": "Identify which source file belongs to which asset or measurement point. Include the intended recipient if known.",
+    "contents": "ZIP includes a readable report, recommended actions, selected findings and bar charts. No raw recordings, full prediction tables or model binaries. Suggested recipients are maintenance roles; you choose who receives it.",
+    "download": "Download review package",
+    "open": "Extract the ZIP and open Report.html for charts, or Summary.txt for the text version. Nothing is sent automatically.",
 }
 
 # Failure copy distinguishes upload layout, unreadable files, missing setup, and
@@ -223,7 +241,7 @@ THEME_CONFIG_COLOURS = {
 
 EXPLAIN_HEADING = "How this reading was reached"
 EXPLAIN_STANDFIRST = "The model's own workings, one step at a time."
-EXPLAIN_FAILED = "Results are ready to download. The explanation could not be drawn ({reason})."
+EXPLAIN_FAILED = "Assessment results are available in Details. The explanation could not be drawn ({reason})."
 
 # Rows are sized rather than the chart, so a one-file and a sixteen-file batch keep
 # identical bar thickness instead of stretching to fill a fixed height.

@@ -98,18 +98,18 @@ def test_recommendations_stay_visible_in_answer_and_details_and_escape_filenames
     assert "What to do next" in html
     assert "&lt;script&gt;case.xlsx" in html
     assert "<script>case.xlsx" not in html
-    assert len(app.get("download_button")) == 1
+    assert len(app.get("download_button")) == 0
 
     app.segmented_control[0].set_value("technical").run()
     assert not app.exception
     html = "\n".join(element.value for element in app.markdown)
     assert "Start the ACV inspection with Car 03" in html
     assert len(app.dataframe) == 1
-    assert len(app.get("download_button")) == 1
+    assert len(app.get("download_button")) == 0
 
 
-def test_missing_explanation_does_not_invent_recommendations_or_block_download():
+def test_missing_explanation_does_not_invent_recommendations():
     app = AppTest.from_function(_assessment_app, args=([],)).run()
     assert not app.exception
     assert "What to do next" not in "\n".join(element.value for element in app.markdown)
-    assert len(app.get("download_button")) == 1
+    assert len(app.get("download_button")) == 0

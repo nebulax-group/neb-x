@@ -50,7 +50,7 @@ RECOMMENDATIONS = {
     SEVERITY_CLEAR: {
         "title": "Save this reading and monitor the next recording",
         "steps": (
-            "Download the predictions to keep a record of this door's cycles.",
+            "Save the review package to keep a record of this assessment.",
             "Compare a later recording for new resistance flags; follow the normal inspection schedule.",
         ),
     },
@@ -65,7 +65,7 @@ RECOMMENDATIONS = {
     SEVERITY_DANGER: {
         "title": "Escalate repeated resistance to the maintenance team",
         "steps": (
-            "Select the consecutive flagged cycles below and download their times for the maintenance team.",
+            "Select the consecutive flagged cycles below; their times and current evidence will be included in the review package.",
             "Request a prompt door inspection and follow the depot's fault-handling procedure.",
             "After corrective work, upload a fresh recording to check for recurring resistance.",
         ),

@@ -83,7 +83,7 @@ RECOMMENDATIONS = {
     SEVERITY_CLEAR: {
         "title": "Record this estimate and review the accumulated history",
         "steps": (
-            "Download the predictions and associate each recording with its measurement point and collection period.",
+            "Save the review package and associate each recording with its measurement point and collection period.",
             "Compare with earlier recordings from the same point and review the accumulated damage with the maintenance team.",
         ),
     },
@@ -97,12 +97,12 @@ RECOMMENDATIONS = {
     SEVERITY_DANGER: {
         "title": "Escalate {file} for an urgent structural review",
         "steps": (
-            "Share the source recording and downloaded predictions with the responsible structural engineer; this estimate reaches the model's fatigue limit.",
+            "Share the review package with the responsible structural engineer; this estimate reaches the model's fatigue limit. Keep the source recording available for follow-up.",
             "Follow the depot's escalation and inspection procedure to determine the operational response.",
         ),
     },
 }
 RECOMMENDATION_SCOPE = (
     "This estimate covers the uploaded recording. Check prior damage separately; "
-    "the repeat-run estimate assumes the same loading and no earlier damage."
+    "remaining asset lifetime cannot be determined from this recording alone."
 )

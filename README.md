@@ -15,7 +15,7 @@ independent subsystems, each worth 25% of the Overall Score.
 | Door | Find each door open/close cycle in a continuous stream and classify it `Normal` vs `Abnormal resistance` | IoU-weighted F1 | **implemented** |
 | ACV | Rank the cars in a train from most- to least-likely to have a refrigerant leak | Linear rank-decay | **implemented** |
 | Rail Corrugation | Classify `Normal` / `Side I` / `Side II` from axle-box vibration | Macro F1 | **implemented** |
-| SHM | Estimate cumulative fatigue damage from dynamic stress data | `max(0, 1 − MAPE)` | not started |
+| SHM | Estimate cumulative fatigue damage from dynamic stress data | `max(0, 1 − MAPE)` | **implemented** |
 
 Each subsystem's authoritative definition — schema, labels, exact scoring formula with a worked
 example — is its info kit under [docs/](docs/). The table above is a convenience summary and loses
@@ -50,7 +50,35 @@ The datasets are not in git (~6 GB). Clone the organisers' repo and copy `PS3/02
 
 Every command below uses the Windows interpreter path; substitute `.venv/bin/python` elsewhere.
 
+## Maintenance review app
+
+Start `scripts\app.bat` on Windows or `./scripts/app.sh` on macOS/Linux.
+Choose a system and upload its recordings. Door, ACV and SHM are available when their
+dependencies and required checkpoints are installed; Rail Corrugation remains unavailable.
+
+Each system keeps its uploads, latest assessment, Answer/Details view and selected cycle
+while you switch systems in the same browser session. Replacing or removing files replaces
+that system's current assessment; failed uploads cannot leave an old result in the handoff.
+Closing the session or restarting the server does not preserve this workspace.
+
+At the bottom, **Download review package** creates a ZIP to extract and share. Optional
+work-order reference, preparer and asset/location notes travel with it. The folder contains:
+
+- `Summary.txt`: scope, suggested maintenance recipients and next actions.
+- `Report.html`: an offline, printable report with bar charts and selected findings.
+- One folder per assessed system, with `README.txt`, and `findings.csv` / evidence charts
+  when there are review items. Door includes abnormal cycles and current ratios; ACV includes
+  inspection candidates; SHM includes recordings meeting its existing review thresholds.
+- `manifest.json`: assessment times, source filenames and file checksums for traceability.
+
+No raw recordings, full prediction tables or trained model binaries are included. Systems
+with no review items are documented; unassessed systems and incomplete evidence are explicit.
+Suggested recipients are roles, not verified contacts; nothing is sent automatically.
+SHM values describe damage contributed by individual recordings, not known remaining asset life.
+Hackathon prediction CSV generation remains available through the submission scripts.
+
 ## Running the subsystems
+## Door and ACV command-line examples
 
 **Tests** — 48 of them, covering Door and ACV end to end:
 
@@ -160,7 +188,7 @@ neb-x/
 ├── src/
 │   ├── common/                   subsystem-agnostic: config (owns every path), io
 │   ├── door/ acv/ rail/ shm/     one package per subsystem, identical file roles
-│   ├── app/                      the non-technical UI (not started)
+│   ├── app/                      review workspaces and maintenance handoff UI
 │   ├── submission/               schema validation, predictions.zip packaging
 │   └── video/                    renders video/src/ and stitches the pitch video
 ├── tests/                        mirrors src/; door/ and acv/ covered
