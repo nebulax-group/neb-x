@@ -80,9 +80,26 @@ the choice was not *driven* by it, but this is not a blind holdout and should no
 **ACV fits no parameters, so it cannot overfit them — but n=5 is n=5.** The method is a fixed
 physical formula with zero learned coefficients. The exposure is *specification* bias: the signal
 was chosen after seeing it work on five cases. 5/5 on five cases cannot separate "reliably right"
-from "lucky" on its own, and the held-out margin (0.166) is thinner than every training margin
-(0.47–1.13). **The bootstrap and the specification-bias check below are the reasons to be confident
-here, not the 5/5.**
+from "lucky" on its own. **The bootstrap and the specification-bias check below are the reasons to
+be confident here, not the 5/5.**
+
+**Correction (2026-09-19).** An earlier version of this file claimed the held-out margin of 0.166
+was "thinner than every training margin (0.47–1.13)". That was wrong — it generalised from three
+cases and missed two. The actual per-case margins between the top car and the second are:
+
+| Case | True car | Margin | Ranked correctly? |
+|---|---|---|---|
+| acv_case_01 | 01 | +0.472 | yes |
+| acv_case_02 | 02 | +0.103 | yes |
+| acv_case_03 | 03 | +0.449 | yes |
+| acv_case_05 | 04 | **+0.018** | yes |
+| acv_case_06 | 06 | +1.136 | yes |
+| acv_test_case | — | +0.166 | held out |
+
+**The held-out margin is larger than two of the five training margins.** `acv_case_05` was decided
+by 0.018 °C — nine times thinner than the test case — and the method still got it right. The thin
+margin was never the worry it was described as. Credit to Wayne, whose `src/acv/config.py` comment
+recorded the real figures and exposed the error.
 
 ## Robustness to specification bias - the strongest ACV evidence
 
