@@ -26,13 +26,12 @@ _TEMPLATE = """<div class="nx-rail">
 </svg>
 <span class="nx-wordmark">neb-x</span>
 <span class="nx-eyebrow">{eyebrow}</span>
-{chip}
 </div>
 <h1 class="nx-title">{title}</h1>
 <p class="nx-standfirst">{standfirst}</p>"""
 
 
-def render(eyebrow: str, title: str, standfirst: str, chip: str | None = None) -> None:
+def render(eyebrow: str, title: str, standfirst: str) -> None:
     """Draw the masthead and the sentence explaining what to do."""
     st.markdown(
         _TEMPLATE.format(
@@ -41,7 +40,6 @@ def render(eyebrow: str, title: str, standfirst: str, chip: str | None = None) -
             eyebrow=eyebrow,
             title=title,
             standfirst=standfirst,
-            chip=f'<span class="nx-chip">{chip}</span>' if chip else "",
         ),
         unsafe_allow_html=True,
     )

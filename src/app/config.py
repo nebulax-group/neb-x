@@ -29,15 +29,57 @@ for _name, _mapping in (("SUBSYSTEM_LABELS", SUBSYSTEM_LABELS), ("SUBSYSTEM_BLUR
             "The app offers exactly these keys, so a missing one disappears from the UI silently."
         )
 
-READY_CHIP = "{ready} of {total} systems ready"
-
 BOARD_HEADING = "Choose a system to check"
 BOARD_STANDFIRST = "Pick the system your recordings came from."
-BOARD_READY = "Model ready"
-BOARD_IDLE = "No model yet"
 BOARD_WAITING = "Pick a system to continue."
 BOARD_SELECT = "Select"
 BOARD_SELECTED = "Selected"
+
+# Where a system stands, which is a fact about the queue and never about what a model
+# found. Blue is nothing assessed yet, red is on the queue, green is an assessment
+# that finished. A system with no model keeps the resting hairline and says so.
+CARD_ABSENT = "absent"
+CARD_IDLE = "idle"
+CARD_QUEUED = "queued"
+CARD_RUNNING = "running"
+CARD_DONE = "done"
+CARD_FAILED = "failed"
+CARD_STANDINGS = (CARD_ABSENT, CARD_IDLE, CARD_QUEUED, CARD_RUNNING, CARD_DONE, CARD_FAILED)
+
+# Silence is the resting state. A word appears beside the lamp only where the colour
+# alone would not tell a reader what to do or wait for.
+CARD_WORDS = {
+    CARD_ABSENT: "No model yet",
+    CARD_IDLE: "",
+    CARD_QUEUED: "Queued",
+    CARD_RUNNING: "Running",
+    CARD_DONE: "",
+    CARD_FAILED: "Not assessed",
+}
+CARD_TONES = {
+    CARD_ABSENT: "",
+    CARD_IDLE: "nx-tone-idle",
+    CARD_QUEUED: "nx-tone-work",
+    CARD_RUNNING: "nx-tone-work",
+    CARD_DONE: "nx-tone-done",
+    CARD_FAILED: "nx-tone-idle",
+}
+# Only the system whose turn it is moves. A queued one shares its colour and waits.
+CARD_LAMPS = {
+    CARD_ABSENT: "",
+    CARD_IDLE: "",
+    CARD_QUEUED: "",
+    CARD_RUNNING: "nx-pulse",
+    CARD_DONE: "",
+    CARD_FAILED: "",
+}
+
+for _name, _mapping in (("CARD_WORDS", CARD_WORDS), ("CARD_TONES", CARD_TONES), ("CARD_LAMPS", CARD_LAMPS)):
+    if set(_mapping) != set(CARD_STANDINGS):
+        raise RuntimeError(
+            f"{_name} covers {sorted(_mapping)}, expected {sorted(CARD_STANDINGS)}. "
+            "A standing with no entry draws a card with no colour and no word."
+        )
 
 UPLOAD_PROMPT = "{label} recordings"
 UPLOAD_HELP = "Accepted: {formats}. Keep the original filenames."
@@ -48,8 +90,23 @@ UPLOAD_REQUIREMENTS = {
     "rail": "Upload one or more axle-box recordings: 129 columns starting with Rotating speed, then vibration and shock for each of the 64 axle boxes, one second at 10,000 samples per file.",
 }
 UPLOAD_WAITING = "Add at least one file to run {label}."
-SPINNER_MESSAGE = "Running the {label} model..."
+UPLOAD_LOCKED = "Files are locked until {label} finishes."
+# A batch is assessed whole, so the only edit offered is replacing all of it. The
+# per-file remove and add controls are hidden rather than left to imply otherwise.
+UPLOAD_CLEAR = "Clear all"
+UPLOAD_CLEAR_HELP = "Remove every file for this system and start again."
+UPLOAD_BATCH = "Recordings are assessed as one batch. Clear all to swap them."
 RESULTS_HEADING = "Assessment"
+
+RUNNING_HEADING = "Running"
+RUNNING_HEADLINE = "{label} is assessing your recordings."
+RUNNING_DETAIL = "Switch to another system while this finishes. Its files are locked until it does."
+
+QUEUED_HEADING = "Queued"
+QUEUED_HEADLINE = "{label} is waiting its turn."
+QUEUED_DETAIL = "Systems are assessed one at a time, in the order you started them."
+
+REPORT_UNAVAILABLE = "Review evidence could not be prepared. Open the assessment and ask the app maintainer to review it."
 RECOMMENDATION_HEADING = "What to do next"
 READOUT_CAPTIONS = {
     "system_caption": "System",
@@ -143,7 +200,17 @@ UPLOAD_DIR_PREFIX = "neb-x-uploads-"
 # of them is not.
 CACHE_MAX_READINGS = 4
 
+# One worker, so the queue is the order systems were started in and two models never
+# compete for the machine.
+QUEUE_WORKERS = 1
+# How often the page asks whether the queue has moved. Short enough to feel immediate,
+# long enough that a wait is not a stream of reruns.
+POLL_SECONDS = 0.4
+
 SELECTED_STATE_KEY = "nx_selected_subsystem"
+# A Streamlit uploader cannot be emptied by writing to its own state, so clearing one
+# means drawing a new widget. The count is what makes its key different.
+UPLOAD_GENERATION_KEY = "nx_upload_generation"
 PANEL_STATE_KEY = "nx_panel_index"
 RESULT_VIEW_STATE_KEY = "nx_result_view"
 

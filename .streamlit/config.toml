@@ -32,5 +32,12 @@ blueTextColor = "#E9F1F4"
 [server]
 headless = true
 
+# Streamlit re-walks sys.modules and realpaths every entry after each script run, on
+# the event loop. Without watchdog it also polls those paths from four threads. A
+# subsystem that imports a large dependency mid-run grows that set enough to stall the
+# loop for the whole length of its model, which stops clicks being answered. Nothing
+# here reloads on edit anyway: a change under src/app/ has always needed a restart.
+fileWatcherType = "none"
+
 [browser]
 gatherUsageStats = false

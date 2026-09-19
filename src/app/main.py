@@ -19,7 +19,17 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.app import config, services, workspace  # noqa: E402
-from src.app.ui import assessment, board, failure, handoff, masthead, section, theme, upload  # noqa: E402
+from src.app.ui import (  # noqa: E402
+    assessment,
+    board,
+    failure,
+    handoff,
+    masthead,
+    progress,
+    section,
+    theme,
+    upload,
+)
 
 
 def main() -> None:
@@ -27,30 +37,41 @@ def main() -> None:
     theme.apply()
 
     available = {key: services.is_available(key) for key in config.SUBSYSTEM_LABELS}
-    masthead.render(
-        config.EYEBROW,
-        config.PAGE_TITLE,
-        config.STANDFIRST,
-        chip=config.READY_CHIP.format(
-            ready=sum(available.values()), total=len(available)
-        ),
-    )
+    # Every finished assessment, not only the selected system's: the handoff below
+    # covers the whole session, so it cannot wait for each one to be looked at again.
+    workspace.collect(st.session_state)
+    # Before anything is drawn, so the board and the uploader both show this pass
+    # where the selected system actually stands rather than where it stood last.
+    outcome = advance(st.session_state.get(config.SELECTED_STATE_KEY), available)
+    standing = workspace.standing(available, st.session_state)
+    locked = {key: place in workspace.ON_QUEUE for key, place in standing.items()}
+
+    masthead.render(config.EYEBROW, config.PAGE_TITLE, config.STANDFIRST)
 
     section.render(config.BOARD_HEADING, config.BOARD_STANDFIRST)
     subsystem = board.render(
         config.SUBSYSTEM_LABELS,
         config.SUBSYSTEM_BLURBS,
         available,
+        standing,
         config.SELECTED_STATE_KEY,
     )
-    batches = upload.render_windows(subsystem, available)
+    upload.render_windows(subsystem, available, locked, workspace.reset)
     try:
-        render_selected(subsystem, available, batches)
+        render_selected(subsystem, available, outcome)
     finally:
         handoff.render(workspace.runs(st.session_state))
+        progress.watch(st.session_state, standing)
 
 
-def render_selected(subsystem, available, batches) -> None:
+def advance(subsystem: str | None, available: dict[str, bool]) -> workspace.Outcome:
+    """Start or collect the selected system's reading."""
+    if subsystem is None or not available.get(subsystem):
+        return workspace.Outcome(workspace.IDLE)
+    return workspace.assess(subsystem, upload.files(subsystem), st.session_state)
+
+
+def render_selected(subsystem, available, outcome: workspace.Outcome) -> None:
     if subsystem is None:
         st.caption(config.BOARD_WAITING)
         return
@@ -62,20 +83,21 @@ def render_selected(subsystem, available, batches) -> None:
         failure.render_unavailable(subsystem, available)
         return
 
-    uploads = batches.get(subsystem, [])
-    if not uploads:
-        workspace.assess(subsystem, [], st.session_state)
+    if outcome.state in workspace.ON_QUEUE:
+        progress.render_running(label, working=outcome.state == workspace.RUNNING)
+        return
+
+    if outcome.state == workspace.FAILED:
+        # A non-technical user needs a way out, not a traceback.
+        described = services.describe_failure(outcome.error, upload.files(subsystem))
+        failure.render(described, subsystem, available)
+        return
+
+    if outcome.state == workspace.IDLE:
         upload.render_waiting(label)
         return
 
-    try:
-        with st.spinner(config.SPINNER_MESSAGE.format(label=label)):
-            run = workspace.assess(subsystem, uploads, st.session_state)
-            answer = run.reading
-    except Exception as exc:  # a non-technical user needs a way out, not a traceback
-        failure.render(services.describe_failure(exc, uploads), subsystem, available)
-        return
-
+    answer = outcome.run.reading
     assessment.render(
         answer.frame,
         services.prediction_filename(subsystem),

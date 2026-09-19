@@ -47,6 +47,7 @@ import functools
 import hashlib
 import importlib
 import re
+import shutil
 import tempfile
 import zipfile
 from collections.abc import Callable, Iterable
@@ -194,6 +195,15 @@ def stage_uploads(uploads: Iterable[Any]) -> list[Path]:
         path.write_bytes(_read_upload(upload))
         staged.append(path)
     return staged
+
+
+def discard_staged(batch: str) -> None:
+    """Remove the copy staged for one set of files, if it is still on disk.
+
+    The deployed filesystem is held in memory, so a session that works through several
+    large batches would otherwise carry every one of them until the process ends.
+    """
+    shutil.rmtree(_staging_root() / batch, ignore_errors=True)
 
 
 def run_prediction(subsystem: str, inputs: list[Path]) -> pd.DataFrame:

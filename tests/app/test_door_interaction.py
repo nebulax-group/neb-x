@@ -23,7 +23,7 @@ def _app():
     hidden = st.checkbox("Hide cycles")
     upload = BytesIO(b"recording")
     upload.name = "second.csv" if other else "first.csv"
-    answer = cache.reading("door", [upload])
+    answer = cache.reading("door", cache.digest([upload]), [upload])
     if not hidden:
         render_panel(answer.panels[0])
 
@@ -45,13 +45,9 @@ def cycle_app(monkeypatch):
     monkeypatch.setattr(services, "stage_uploads", lambda uploads: [Path(item.name) for item in uploads])
     monkeypatch.setattr(services, "run_prediction", prediction)
     monkeypatch.setattr(services, "explain_prediction", explanation)
-    cache._staged.clear()
-    cache._prediction.clear()
-    cache._explanation.clear()
+    cache.clear()
     yield AppTest.from_function(_app).run(), prediction, explanation
-    cache._staged.clear()
-    cache._prediction.clear()
-    cache._explanation.clear()
+    cache.clear()
 
 
 def _readout(app):

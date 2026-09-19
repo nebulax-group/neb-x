@@ -2,8 +2,8 @@
 
 Rendering only, and deliberately generic — the board is built by looping over the
 labels it is handed, so a fifth subsystem appears here without this file changing.
-Whether a subsystem can run is decided in ``src/app/services.py``; this file only
-draws the answer.
+Whether a subsystem can run is decided in ``src/app/services.py`` and where it stands
+in ``src/app/workspace.py``; this file only draws the answer.
 
 The card is a ``st.container`` with a key, which Streamlit turns into a stable
 ``st-key-nx-card-<subsystem>`` class. That is what lets the description and the
@@ -14,7 +14,13 @@ from html import escape
 
 import streamlit as st
 
-from src.app.config import BOARD_IDLE, BOARD_READY, BOARD_SELECT, BOARD_SELECTED
+from src.app.config import (
+    BOARD_SELECT,
+    BOARD_SELECTED,
+    CARD_LAMPS,
+    CARD_TONES,
+    CARD_WORDS,
+)
 
 _CARD_KEY = "nx-card-{subsystem}"
 _BUTTON_KEY = "nx-pick-{subsystem}"
@@ -22,11 +28,12 @@ _BUTTON_KEY = "nx-pick-{subsystem}"
 # Left-aligned at column zero on purpose: st.markdown reads four leading spaces as
 # an indented code block and would print this markup instead of rendering it.
 _CARD = """<div class="nx-card {state}">
-<div class="nx-lamp-row"><span class="nx-lamp {lamp}"></span>
-<span class="nx-lamp-text">{status}</span></div>
+<div class="nx-lamp-row"><span class="nx-lamp {lamp}"></span>{status}</div>
 <div class="nx-card-name">{label}</div>
 <div class="nx-card-blurb">{blurb}</div>
 </div>"""
+
+_STATUS = '<span class="nx-lamp-text">{status}</span>'
 
 
 def _choose(state_key: str, subsystem: str) -> None:
@@ -40,6 +47,7 @@ def render(
     labels: dict[str, str],
     blurbs: dict[str, str],
     available: dict[str, bool],
+    standing: dict[str, str],
     state_key: str,
 ) -> str | None:
     """Draw every system as a card and return the selected key, if there is one."""
@@ -47,13 +55,24 @@ def render(
 
     for column, (subsystem, label) in zip(st.columns(len(labels)), labels.items()):
         ready = available[subsystem]
+        place = standing[subsystem]
         chosen = subsystem == selected
+        word = CARD_WORDS[place]
+        state = " ".join(
+            name
+            for name, on in (
+                ("nx-on", chosen),
+                ("nx-off", not ready),
+                (CARD_TONES[place], True),
+            )
+            if on and name
+        )
         with column, st.container(key=_CARD_KEY.format(subsystem=subsystem)):
             st.markdown(
                 _CARD.format(
-                    state="nx-on" if chosen else "" if ready else "nx-off",
-                    lamp="nx-lit" if ready else "",
-                    status=escape(BOARD_READY if ready else BOARD_IDLE),
+                    state=state,
+                    lamp=f"nx-lit {CARD_LAMPS[place]}".strip() if ready else "",
+                    status=_STATUS.format(status=escape(word)) if word else "",
                     label=escape(label),
                     blurb=escape(blurbs[subsystem]),
                 ),
