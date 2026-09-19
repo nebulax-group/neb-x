@@ -75,11 +75,60 @@ LABEL_SIDE_II = "Side II"
 LABELS = (LABEL_NORMAL, LABEL_SIDE_I, LABEL_SIDE_II)
 SIDE_LABELS = (LABEL_SIDE_I, LABEL_SIDE_II)  # index-aligned with SIDE_BOXES
 
-# What every file is called when no checkpoint exists. Also the majority class,
-# so this is the 0.33 macro-F1 floor rather than an arbitrary guess.
-FALLBACK_LABEL = LABEL_NORMAL
-
 PREDICTION_COLUMNS = ("file_id", "prediction")
+
+# --- reporting -------------------------------------------------------------
+
+# How urgent each call is, which is the one judgement the app will not make for
+# itself. A named rail is a caution and never an alert: the model answers *which*
+# rail is corrugated, not how far the wear has gone, and neither the Info Kit nor
+# the three labels define a severity over the 3-30 cm band. Painting a fault red
+# would be reading a depth off a three-way classification that has none.
+SEVERITY_CLEAR = "clear"
+SEVERITY_CAUTION = "caution"
+
+SEVERITIES = {
+    LABEL_NORMAL: SEVERITY_CLEAR,
+    LABEL_SIDE_I: SEVERITY_CAUTION,
+    LABEL_SIDE_II: SEVERITY_CAUTION,
+}
+
+if set(SEVERITIES) != set(LABELS):
+    raise RuntimeError(
+        f"SEVERITIES covers {sorted(SEVERITIES)}, expected {sorted(LABELS)}. "
+        "A call with no severity renders as a verdict card with no colour and no word."
+    )
+
+# What to do about each, in the words of the depot rather than the model. Keyed by
+# severity so the copy cannot disagree with the colour beside it.
+RECOMMENDATIONS = {
+    SEVERITY_CLEAR: {
+        "title": "Record the pass and keep it for comparison",
+        "steps": (
+            "Download the predictions and file them against the section of track and the date this run covers.",
+            "Compare with earlier runs over the same section. Corrugation grows between passes, so one clear reading is a point, not a trend.",
+        ),
+    },
+    SEVERITY_CAUTION: {
+        "title": "Inspect the {rail} rail where {file} was recorded",
+        "steps": (
+            "Book an inspection of the {rail} rail over the stretch this recording covers. The reading is an asymmetry between the two rails, so the opposite rail is the comparison and not a second suspect.",
+            "Check the last run over the same section before ordering grinding: whether the ripple is new or growing is what decides the work, and one pass cannot say.",
+        ),
+    },
+}
+
+if set(RECOMMENDATIONS) != set(SEVERITIES.values()):
+    raise RuntimeError(
+        f"RECOMMENDATIONS covers {sorted(RECOMMENDATIONS)}, expected "
+        f"{sorted(set(SEVERITIES.values()))}. A severity with no steps renders a verdict "
+        "with nothing under it."
+    )
+
+RECOMMENDATION_SCOPE = (
+    "This is one second of running over one section of track. It names a rail and a "
+    "stretch to look at, not a measurement of how worn either rail is."
+)
 
 # Byte-identical to Train107.csv and Train165.csv respectively, both Normal.
 # Excluded from training so a fold cannot score against its own example.

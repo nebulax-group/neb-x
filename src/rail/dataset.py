@@ -16,6 +16,11 @@ from src.rail import config
 
 FILENAME, LABEL = config.LABEL_COLUMNS
 
+# One wording for one fault, because two callers raise it: validate.py rejects an
+# upload on the header alone and load_recording rejects it again on the full read.
+# A user who fixes the file and retries must not be answered in different words.
+SCHEMA_MISMATCH = "{name} does not match the rail schema: {mismatch}."
+
 _VIBRATION_INDEX = np.fromiter(config.VIBRATION_COLUMNS, dtype=int)
 _SHOCK_INDEX = np.fromiter(config.SHOCK_COLUMNS, dtype=int)
 
@@ -34,7 +39,17 @@ class Recording:
     shock: np.ndarray  # (SAMPLES_PER_FILE, N_AXLE_BOXES) m/s^2
 
 
-def _describe_header_mismatch(columns: tuple[str, ...]) -> str:
+def read_header(path: str | Path) -> tuple[str, ...]:
+    """The column names alone, without parsing the 10,000 rows beneath them.
+
+    Whether a file was recorded by this system is settled by its header, and a
+    rail CSV is ~21 MB. Reading one to answer that question costs a full parse
+    of the samples ``load_recording`` is about to read again.
+    """
+    return tuple(read_table(Path(path), nrows=0).columns)
+
+
+def describe_header_mismatch(columns: tuple[str, ...]) -> str:
     """Name the first difference from the expected schema, or "" if there is none."""
     if len(columns) != config.N_COLUMNS:
         return f"expected {config.N_COLUMNS} columns, found {len(columns)}"
@@ -49,9 +64,9 @@ def load_recording(path: str | Path) -> Recording:
     path = Path(path)
     frame = read_table(path)
 
-    mismatch = _describe_header_mismatch(tuple(frame.columns))
+    mismatch = describe_header_mismatch(tuple(frame.columns))
     if mismatch:
-        raise ValueError(f"{path.name} does not match the rail schema: {mismatch}.")
+        raise ValueError(SCHEMA_MISMATCH.format(name=path.name, mismatch=mismatch))
     if len(frame) != config.SAMPLES_PER_FILE:
         raise ValueError(
             f"{path.name} holds {len(frame)} samples, expected {config.SAMPLES_PER_FILE}."
