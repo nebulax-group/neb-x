@@ -125,7 +125,10 @@ def training_features(refresh: bool = False) -> tuple[np.ndarray, list[str], np.
         raise ValueError(
             f"{FEATURE_CACHE_PATH.name} {stale}. Re-extract with refresh=True."
         )
-    return cached["matrix"], list(cached["files"]), cached["speeds"]
+    # Cast off numpy's string type: these names go straight into the messages in
+    # training_set, where np.str_ renders as np.str_('Train9.csv') and the same
+    # fault reads differently depending on whether the cache happened to be warm.
+    return cached["matrix"], [str(name) for name in cached["files"]], cached["speeds"]
 
 
 def training_set(refresh: bool = False) -> TrainingSet:

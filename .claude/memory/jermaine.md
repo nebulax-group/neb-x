@@ -24,6 +24,78 @@ serial loop; start extraction first and never block on the full run. See [[team-
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-19 — rail implements the maintenance handoff, so it stops reporting itself incomplete
+
+**What:** new `src/rail/handoff.py` — `build(inputs, frame, panels)` returning the contract
+`src/app/services.review_report` asks for, modelled on `src/shm/handoff.py` and
+`src/acv/handoff.py`. A finding is a recording the model named a rail for; Normal recordings are
+not findings. Every number comes back through `explain._read_batch`, the same pass the panels are
+drawn from, so the folder a depot receives cannot disagree with the screen it came from.
+`tests/rail/test_handoff.py`, 9 tests.
+
+**Why:** `workspace.assess` catches everything `review_report` raises, so rail's missing module was
+never a crash — it was worse. Rail was the only subsystem rendering as *"Evidence incomplete · App
+maintainer review needed"*, and the only folder in the review ZIP reading *"assessment exists, but
+review evidence is incomplete. Do not interpret this as no findings."* That ZIP is a graded
+deliverable.
+
+Two things worth knowing if anyone else writes one of these:
+
+- **`app/handoff.chart_svg` raises on a non-finite bar, and `workspace.assess` swallows it into
+  "incomplete".** One bad row therefore costs the whole subsystem's report, not the row. Rail's
+  contrast is NaN on a stationary recording, so a fault called on a stopped train is listed as a
+  finding with no margin and contributes no bar. Forced in the tests rather than waited for.
+- **`csv.DictWriter` takes its column names from `records[0]`** and raises on any later row
+  carrying a key those do not name, so every finding has to have identical keys.
+
+`model_probability` goes through `explain._confidence`, not `round()`: a bare `1.0` in a column a
+depot reads is exactly the certainty that decision exists to avoid claiming.
+
+Verified end to end against `origin/main`'s real `app/handoff.py` out of tree (rail is not merged
+with it yet): chart renders, ZIP builds, rail's `README.txt` no longer says incomplete.
+
+**Affects:** Wayne — rail now answers `review_report` like the other three, so the handoff panel
+and the review package stop flagging it for maintainer review. Nothing in the app changes. Jou —
+nobody.
+
+### 2026-09-19 — rail has a test suite, and it found one failure the app was showing wrong
+
+**What:** new `tests/rail/` — 90 tests across config, speed, dataset, features, predict, explain,
+train and one file that drives rail through `src/app/services.py` rather than through pytest.
+33 s, on the four named recordings in its `conftest.py` and the real checkpoint.
+
+Two code changes came out of writing them, both in `src/rail/`:
+
+- **`validate.py` now reads the whole file, not just the header.** The sample-count and finiteness
+  checks lived only in `dataset.load_recording`, which runs inside `predict` — and
+  `run_prediction` wraps anything `predict` raises in `AssessmentFailed`, so a truncated export or
+  a channel with a hole in it reached the page as `FAILURE_INTERNAL`, *"the assessment was
+  interrupted"*. That is the app blaming itself for a file the reader could fix, and it is the
+  exact thing `validate.py`'s own docstring says it exists to prevent. Door and SHM both validate
+  these up front; rail was the odd one out. Both now land as `FAILURE_MISMATCH` with the sentence
+  naming the file. Cost: one extra parse per file — 132 ms each, so ~9 s on a 68-file batch,
+  0.13 s on a single upload. The header is still checked first and alone, at 5 ms, so a file from
+  another system never pays it.
+- **`train.py` casts the cached filenames back to `str`.** `np.load` returns `np.str_`, so
+  *"Cached files carry no label: [np.str_('Train9.csv')]"* — and the same fault printed differently
+  depending on whether the cache happened to be warm.
+
+**Why:** door, acv and the app had tests and rail had none, so nothing was watching the two places
+a wrong rail answer would be silent: the derived column layout, and the alignment between
+`FEATURE_NAMES` and the 228 values `extract` stacks. Both are now checked against the organisers'
+own header text and by amplifying one rail by 10x and asserting each named group of columns moves
+by the amount that implies. Both checks were confirmed to bite by flipping the side parity and by
+swapping the vibration/shock interleave; the parity flip is also caught a second time by
+`FEATURE_FINGERPRINT`, which is that guard doing its job.
+
+**Also:** `pytest==8.4.2` was missing from `.venv` despite being pinned in `requirements.txt`.
+Installed. If `python -m pytest` reports no module named pytest, that is why.
+
+**Affects:** Wayne — rail now returns a *mismatch* rather than an *internal* failure for a
+malformed rail CSV, so the page shows the expected-layout copy and recovery steps for those two
+cases where it previously showed the interrupted-assessment panel. No signature, schema, path or
+cached artefact changed. Jou — nobody.
+
 ### 2026-09-19 — rail's verdict quotes a measured ratio, not the model's probability, and a batch shows every file
 
 **What:** `explain.py` only. The verdict detail is now the cross-side contrast in the band that
