@@ -37,23 +37,51 @@ but never assume numeric order.
 
 ## Blocking — clear these first
 
-1. **App shell + the function signature.** The integration contract. ~3h, **Wayne**.
+1. ~~**App shell + the function signature.**~~ **Done** — Wayne's branch has the shell, routing,
+   theme, `services.py` and a generic explainability renderer.
 2. **`common/metrics.py`** — the four official formulas. Nobody can tune against a real number
    until it exists. ~1.5h, **Jou**, who owns the two odd metrics anyway (Door's IoU-weighted F1
-   and ACV's rank-decay; macro-F1 and MAPE are near one-liners).
+   and ACV's rank-decay; macro-F1 and MAPE are near one-liners). **Still missing** — rail scored
+   itself with `sklearn.metrics.f1_score(average="macro")` directly rather than wait.
 
-**Jermaine** starts rail extraction immediately — it depends on neither.
+## Where each subsystem stands — rail 2026-09-19, the rest 2026-09-18
 
-Skip `interface.py` and the registry protocol at this scale. The contract is one function:
+| | State |
+|---|---|
+| **rail** (Jermaine) | **done.** 0.750 ± 0.114 macro F1 (0.757 pooled), checkpoint on disk, 68 held-out rows produced through the app, `explain.py` drawing three panels. All ten phases closed — Phase 7 refuted all five candidate feature blocks and shipped a narrowing, 342 → 228 columns ([[rail-plan]]). Nothing optional left. |
+| **shm** (Wayne) | model via rainflow + Miner's rule, LOO MAPE 2.5%, with explainability panels — on his branch. |
+| **app** (Wayne) | shell, routing, theme, `services.py`, generic panel renderer — on his branch, not yet merged to `main`. |
+| **door, acv** (Jou) | not started. `common/metrics.py` not started. |
+
+**Nothing is merged to `main` yet.** Three branches — `jermaine-rail`, `wayne`, and whatever Jou
+opens — all diverge from the same skeleton commit. Rail and Wayne's work touch disjoint files, so
+the merge should be clean, but it has not been done.
+
+## The integration contract
+
+Skip `interface.py` and the registry protocol at this scale. The contract is one function, plus one
+optional second — **both settled and in use as of 2026-09-18, not a proposal**:
 
 ```python
-# src/<sub>/predict.py
+# src/<sub>/predict.py   REQUIRED
 def predict(inputs: list[Path]) -> pd.DataFrame:
     """Returns exactly the submission rows for this subsystem."""
+
+# src/<sub>/explain.py   OPTIONAL
+def explain(inputs: list[Path]) -> list[dict]:
+    """Panels saying how it reached those rows. Plain dicts, drawn generically."""
 ```
 
-The app does `list_data_files` → `predict` → `st.dataframe` → download button. Four dict entries,
-no protocol.
+`src/app/services.py` resolves both by `importlib` — no registry, no dict of entries. Two traps that
+have already cost real time:
+
+- **`inputs` is a `list[Path]`, never a folder.** The app stages uploads and passes the list. Rail's
+  took `str | Path` and fed it to `list_data_files`, which raises on a list — rail would have scored
+  zero in the app with a working model behind it. **Test against `services.run_prediction`, not
+  against your own `main()`.**
+- **There are no per-subsystem view files.** `src/app/ui/<sub>.py` must never be written; a
+  subsystem returns `metrics` / `bullet` / `bars` / `line` panels and `ui/explain.py` draws them
+  without importing you. The shapes are documented at the top of `services.py`.
 
 ## Bank a floor early
 
@@ -63,18 +91,25 @@ schema, correct `file_id` spelling:
 | Subsystem | Dummy submission | Expected |
 |---|---|---|
 | ACV | `01\|02\|03\|04\|05\|06\|07\|08` | ~0.56 — random ranking averages `(n−(r−1))/n` = 0.5625 |
-| Door | gap-split segments, all `Normal` | **~0.73** — segmentation is exact and the metric is accuracy, so the floor is the Normal share |
-| Rail | constant `Normal` | 0.33 — macro-F1 of (1.0 + 0 + 0)/3 |
+| Door | gap-split segments, all `Normal` | ~0.4 — segmentation is exact, so only the 30/110 abnormals are lost |
+| Rail | constant `Normal` | ~0.308 — macro-F1 of (0.924 + 0 + 0)/3, measured |
 | SHM | constant `0.23` (the training mean) | ~0 — MAPE floors it |
 
 ≈ **0.40 Overall for about 90 minutes of work**, and it makes a technicality-zero impossible.
 Everything after is improvement on a banked position.
 
+**Rail's row said 0.33 until 2026-09-19, from `(1.0 + 0 + 0)/3`. The majority class does not score 1.0
+when you predict it everywhere** — perfect recall, but precision is only its own share of the data, so
+its F1 is `2p/(p+1)`: 0.924 at rail's p = 232/270, giving a floor of **0.308**. The general form for a
+constant prediction over k classes is therefore `2p/(p+1)/k`, and 1/k is an unreachable limit. Door's
+~0.4 already allows for this (0.842/2 = 0.421 at p = 80/110); the Overall ≈ 0.32 is unchanged, since
+the correction is worth 0.006 of it.
+
 ## What gets cut
 
 | Cut | Why |
 |---|---|
-| `interface.py`, `registry.py`, `splits.py` | [[project-structure]] rule 8 is a six-day luxury. A four-entry dict is fine here. |
+| `interface.py`, `registry.py`, `splits.py` | [[project-structure]] rule 8 is a six-day luxury. `services.py` resolving `src.<sub>.predict` by name is fine here — and it kept rule 8's actual promise, since adding a subsystem still needs no app edit. |
 | Model benchmarking | One line in the write-up: default vs GBM. Ten minutes. |
 | Write-up | Optional (§4.2). One page at the end, only if time remains. |
 
@@ -130,7 +165,7 @@ mutually-exclusive lines, so converging does not mean three people in one file:
 
 | Shared task | How it divides |
 |---|---|
-| App views | `src/app/ui/` is one file per component — Jermaine writes rail, Jou writes door and acv, Wayne writes shm |
+| App explanations | `src/app/ui/` is one file per **component**, all Wayne's. Each person supplies `src/<sub>/explain.py` instead — nobody writes a view |
 | `src/submission/` | Written together: `validate.py` checks a CSV against `reference/submission_format/`, `package.py` zips flat |
 | **The submission run** | **Each person runs their own subsystem's test files through the app and validates their own CSV** — the person who knows the schema is the person who checks it |
 | `predictions.zip` | One person zips, once all four CSVs are validated |
@@ -143,12 +178,17 @@ its CSV passes `validate.py`. Not the notebook — the app. That is what the ear
 
 1. **Cache every feature matrix to disk.** Rail extraction over 5.6 GB happens once. Re-extracting
    during tuning is how a 24-hour project dies. `read_table` returns whole DataFrames with no
-   chunking, so extract file-at-a-time and persist.
-2. **Jermaine never blocks on the full rail run.** Build the pipeline on a 100-file subsample; run
-   the full extraction in the background.
+   chunking, so extract file-at-a-time and persist. **And fingerprint the cache**: rail's compares
+   both the column names and a string of every setting that changes a feature's *value* without
+   changing its *name*. Fitting on yesterday's numbers survives every check and shows up only in the
+   submitted CSV.
+2. ~~**Jermaine never blocks on the full rail run.**~~ **Obsolete** — measured at 0.205 s/file, so
+   all 272 extract in 80 s. No subsampling path was ever needed. The worry was 5.6 GB on disk; the
+   cost that matters is 545 kB of features.
 
-If rail extraction is still fighting back with a third of the time left, drop it to a simple
-per-side RMS/band-energy model and take the ~0.5. An unfinished pipeline scores 0.33.
+~~If rail extraction is still fighting back with a third of the time left, drop it to a simple
+per-side RMS/band-energy model and take the ~0.5.~~ Moot: rail is shipped at 0.750 (0.757 pooled) and
+every phase is closed.
 
 ## Verified data facts
 
