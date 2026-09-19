@@ -31,16 +31,16 @@ from .features import cycle_damage, extract_cycles
 from .model import DamageModel
 from .predict import load_model
 
-VERDICT_HEADLINE = "{damage:.0%} of fatigue life used"
-VERDICT_DETAIL = "Room for {runs} more runs like this one. Worst of {count} files."
+VERDICT_HEADLINE = "{damage:.1%} estimated fatigue damage in this recording"
+VERDICT_DETAIL = "Highest estimate across {count} files. Prior accumulated damage is not included."
 RUNS_UNLIMITED = "No limit"
 
-BULLET_TITLE = "Fatigue life used"
-BULLET_CAPTION = "Fatigue life runs out at 1.00. The gap to the marker is what is left."
-TARGET_LABEL = "End of life (D = 1.00)"
+BULLET_TITLE = "Estimated damage per recording"
+BULLET_CAPTION = "Each bar is one recording; values are not summed. D = 1.00 is the model's fatigue limit."
+TARGET_LABEL = "Model fatigue limit (D = 1.00)"
 
 METRICS_TITLE = "Worst file"
-METRICS_CAPTION = "Damage adds up run by run, so this counts the runs still left."
+METRICS_CAPTION = "Highest-damage recording in this batch. This does not establish the asset's remaining lifetime."
 
 BANDS_TITLE = "Where the damage comes from"
 BANDS_CAPTION = (
@@ -159,7 +159,7 @@ def explain(inputs: list[Path], model: DamageModel | None = None) -> list[dict]:
         cycles = extract_cycles(series)
         damage = model.predict(cycles)
         bullet_rows.append(
-            {"label": path.name, "value": damage, "detail": f"{damage:.1%} consumed"}
+            {"label": path.name, "value": damage, "detail": f"{damage:.1%} contribution from this recording"}
         )
         if worst is None or damage > worst[3]:
             worst = (path.name, series, cycles, damage)
@@ -197,14 +197,14 @@ def explain(inputs: list[Path], model: DamageModel | None = None) -> list[dict]:
             "subject": name,
             "items": [
                 {
-                    "label": "Fatigue life consumed",
+                    "label": "Recording damage",
                     "value": f"{damage:.1%}",
                     "detail": f"D = {damage:.4f}",
                 },
                 {
-                    "label": "Recordings left",
-                    "value": format_runs(runs_remaining(damage)),
-                    "detail": "more runs like this one before D = 1.00",
+                    "label": "Assessment scope",
+                    "value": "This recording",
+                    "detail": "prior accumulated damage is unknown",
                 },
                 {
                     "label": "Stress cycles counted",

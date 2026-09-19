@@ -616,6 +616,26 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {
 .stApp .nx-recommendation-steps li + li { margin-top: 0.5rem; }
 .nx-recommendation-steps li::marker { color: var(--nx-instrument); }
 
+.nx-handoff-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    align-items: baseline;
+    padding: 0.85rem 1rem;
+    background: var(--nx-deck);
+    border: 1px solid var(--nx-hairline);
+    border-radius: 4px;
+    color: var(--nx-chalk);
+}
+.nx-handoff-row strong { color: var(--nx-instrument); }
+.nx-handoff-row span:last-child { margin-left: auto; color: var(--nx-chalk-dim); }
+.st-key-nx-handoff-download [data-testid="stDownloadButton"] {
+    display: flex;
+    justify-content: center;
+    padding: 1rem 0;
+}
+.st-key-nx-handoff-download button { min-height: 48px; padding: 0.6rem 1.5rem; }
+
 /* ── Mode switch ──────────────────────────────────────────────────────── */
 
 .st-key-nx-view-toggle { margin: 0 0 1.3rem; }

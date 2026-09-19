@@ -1,5 +1,32 @@
 # Wayne — Change Log
 
+### 2026-09-19 — Session windows and maintenance handoff
+
+Each subsystem keeps its uploader, latest assessed batch, view and cycle selection
+while the browser session is active. `src/app/workspace.py` owns those run records;
+changing or removing files invalidates the old batch before inference, including
+failed replacements. This is not durable storage or a history of every run.
+
+The app now resolves an optional `src.<sub>.handoff.build(inputs, frame, panels)`
+capability, implemented for Door, ACV and SHM. It returns selected findings, suggested
+recipient roles, actions, method, limitations and chart evidence. Missing/failed
+evidence is explicitly incomplete, never an all-clear. Subsystems remain independent.
+
+A single bottom-centered download replaces the UI prediction downloads. The ZIP
+contains Summary.txt, an offline Report.html, a source-checksum manifest and per-system
+README.txt, with findings.csv and SVG bars only where there are selected findings.
+No raw recordings, full prediction tables or model binaries. SHM is per-recording
+damage, not remaining lifetime; ACV candidates are not confirmed leaks. Source files
+must be mapped to actual assets before action. Suggested roles are not verified contacts
+and this is not an LTA approval. Submission CLI schemas and model outputs are unchanged;
+the review ZIP is not the hackathon predictions.zip.
+
+Validation: 109 app, Door and submission tests passed. Headless desktop/mobile checks
+verified retained uploads, views and Door cycle selection, ZIP download and metadata,
+and exclusion of a stale SHM assessment following an invalid replacement upload.
+
+**Affects:** Wayne (app/SHM), Jou (Door/ACV handoff capabilities).
+
 ### 2026-09-19 — Door cycle selection and detail card polish
 
 Removed the decorative train ends. Selected cycles now have a cyan outline and

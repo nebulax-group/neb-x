@@ -1,4 +1,4 @@
-"""The app's entry point and routing: pick a system, add files, predict, download.
+"""Route persistent subsystem windows and a shared maintenance review package.
 
 Run from the repository root with ``streamlit run src/app/main.py``. Screens live
 in ``src/app/ui/``, the subsystem calls in ``src/app/services.py`` and the promise
@@ -18,8 +18,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.app import cache, config, services  # noqa: E402
-from src.app.ui import assessment, board, failure, masthead, section, theme, upload  # noqa: E402
+from src.app import config, services, workspace  # noqa: E402
+from src.app.ui import assessment, board, failure, handoff, masthead, section, theme, upload  # noqa: E402
 
 
 def main() -> None:
@@ -43,6 +43,14 @@ def main() -> None:
         available,
         config.SELECTED_STATE_KEY,
     )
+    batches = upload.render_windows(subsystem, available)
+    try:
+        render_selected(subsystem, available, batches)
+    finally:
+        handoff.render(workspace.runs(st.session_state))
+
+
+def render_selected(subsystem, available, batches) -> None:
     if subsystem is None:
         st.caption(config.BOARD_WAITING)
         return
@@ -54,14 +62,16 @@ def main() -> None:
         failure.render_unavailable(subsystem, available)
         return
 
-    uploads = upload.render_uploader(label, subsystem)
+    uploads = batches.get(subsystem, [])
     if not uploads:
+        workspace.assess(subsystem, [], st.session_state)
         upload.render_waiting(label)
         return
 
     try:
         with st.spinner(config.SPINNER_MESSAGE.format(label=label)):
-            answer = cache.reading(subsystem, uploads)
+            run = workspace.assess(subsystem, uploads, st.session_state)
+            answer = run.reading
     except Exception as exc:  # a non-technical user needs a way out, not a traceback
         failure.render(services.describe_failure(exc, uploads), subsystem, available)
         return

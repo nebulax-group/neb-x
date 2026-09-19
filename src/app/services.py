@@ -320,3 +320,15 @@ def prediction_filename(subsystem: str) -> str:
     """Return the submission filename the predictions must be downloaded as."""
     _require_known(subsystem)
     return PREDICTION_FILENAMES[subsystem]
+
+
+def review_report(subsystem: str, inputs: list[Path], reading: Any) -> dict:
+    """Ask the subsystem which findings and evidence belong in a maintenance handoff.
+
+    The report carries recipient, summary, method, limitations, findings (small
+    tabular records), actions and an optional chart (title, unit, rows). It never
+    carries raw sensor samples or a trained model. Each subsystem owns selection.
+    """
+    _require_known(subsystem)
+    module = importlib.import_module(f"src.{subsystem}.handoff")
+    return module.build(inputs, reading.frame, reading.panels)

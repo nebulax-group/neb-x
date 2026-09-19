@@ -30,20 +30,20 @@ from src.app.ui import explain, recommendation, results, section, verdict
 
 _TOGGLE_KEY = "nx-view-toggle"
 _BUTTON_KEY = "nx-view-{view}"
-_DOWNLOAD_KEY = "nx-download-{view}"
 
 
-def _choose(view: str) -> None:
-    st.session_state[RESULT_VIEW_STATE_KEY] = view
+def _choose(view: str, state_key: str) -> None:
+    st.session_state[state_key] = view
 
 
-def _current_view() -> str:
+def _current_view(state_key: str) -> str:
     """The selected mode, defaulting to the answer."""
-    view = st.session_state.get(RESULT_VIEW_STATE_KEY, VIEW_SIMPLE)
+    view = st.session_state.get(state_key, VIEW_SIMPLE)
     return view if view in VIEW_LABELS else VIEW_SIMPLE
 
 
-def _render_toggle() -> str:
+def _render_toggle(scope: str) -> str:
+    state_key = f"{RESULT_VIEW_STATE_KEY}-{scope}"
     with st.container(key=_TOGGLE_KEY):
         # st.segmented_control arrived in a recent Streamlit, and the deployed host may
         # not offer the Python that pins it. The buttons are the same control drawn by
@@ -53,7 +53,8 @@ def _render_toggle() -> str:
                 VIEW_PROMPT,
                 list(VIEW_ORDER),
                 format_func=VIEW_LABELS.get,
-                key=RESULT_VIEW_STATE_KEY,
+                key=state_key,
+                persist_state="session",
                 default=VIEW_SIMPLE,
                 # Without this a second click clears the selection, and the result
                 # area would be showing a mode no control claims to be on.
@@ -61,7 +62,7 @@ def _render_toggle() -> str:
             )
             return chosen if chosen in VIEW_LABELS else VIEW_SIMPLE
 
-        current = _current_view()
+        current = _current_view(state_key)
         for column, view in zip(st.columns(len(VIEW_ORDER) + 2), VIEW_ORDER):
             with column:
                 st.button(
@@ -70,7 +71,7 @@ def _render_toggle() -> str:
                     type="primary" if view == current else "secondary",
                     width="stretch",
                     on_click=_choose,
-                    args=(view,),
+                    args=(view, state_key),
                 )
         return current
 
@@ -84,7 +85,7 @@ def render(
 ) -> None:
     """Draw the assessment: a mode switch, then whichever mode is selected."""
     section.render(RESULTS_HEADING)
-    view = _render_toggle()
+    view = _render_toggle(subsystem_label)
 
     if explain_failure is not None:
         st.caption(EXPLAIN_FAILED.format(reason=explain_failure))
@@ -93,10 +94,9 @@ def render(
 
     if view == VIEW_TECHNICAL:
         recommendation.render(verdicts)
-        results.render_readout(frame, download_name, subsystem_label)
+        results.render_readout(frame, subsystem_label)
         results.render_table(frame)
-        results.render_download(frame, download_name, _DOWNLOAD_KEY.format(view=view))
-        explain.render(workings)
+        explain.render(workings, scope=subsystem_label)
         return
 
     if verdicts:
@@ -109,5 +109,3 @@ def render(
     # the panel that answers the question, so this is the one chart worth the space.
     if workings:
         explain.render_panel(workings[0])
-
-    results.render_download(frame, download_name, _DOWNLOAD_KEY.format(view=view))
