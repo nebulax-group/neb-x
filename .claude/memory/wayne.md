@@ -1,5 +1,136 @@
 # Wayne — Change Log
 
+### 2026-09-19 — `requirements.txt` moved into `scripts/`, and the submission is built at the root
+
+Three changes that reach every machine here. All three were asked for.
+
+**1. `requirements.txt` is now `scripts/requirements.txt`**, and `install.sh` / `install.bat`
+moved with it. Muscle memory for `pip install -r requirements.txt` at the root now
+installs nothing. `video/requirements.txt` is untouched — that one is manim's and stays
+where `scripts/render.sh` looks for it.
+
+- `src/common/config.py` gained `REQUIREMENTS_PATH = SCRIPTS_DIR / "requirements.txt"`.
+- Both install scripts now `cd` one level up before doing anything: `.venv` belongs to
+  the repository root, not to `scripts/`.
+- All sixteen wrappers were repointed, including the SHA stamp they hash to decide
+  whether to reinstall. The stamp is over the file's contents, which did not change, so
+  nobody's venv reinstalls because of this.
+- `package.copy_app` copies it to the **bare name** `app/requirements.txt`, because the
+  `run.sh` shipped beside it looks for exactly that. `APP_CONTENTS` is now paths relative
+  to the repo root rather than names, and the copy uses `name.name`. Diffed a fresh
+  `copy_app` against the last shipped `app/`: **identical but for `common/config.py`
+  itself**, which ships because the app imports it.
+
+**2. `./submit.sh` builds `<Team Name>/` at the repository root**, not `submission/<Team Name>/`.
+The folder is what gets uploaded, so nothing wraps it that could be sent in its place.
+
+- `SUBMISSION_DIR` → **`SUBMISSION_ROOT = REPO_ROOT`**. `PREDICTIONS_ZIP_PATH` is **deleted**:
+  nothing imported it, and it would now resolve to `REPO_ROOT/predictions.zip`, which is a
+  path that never exists.
+- **`.gitignore` had to change with it, and this one has a consequence.** The folder carries
+  the registered team name, so no rule can match it by name. `/*/` now ignores every
+  top-level folder and the ten that belong in git are listed back by name. So: **a new
+  top-level folder is invisible to git until someone adds a line there.** If `git add`
+  ever appears to do nothing, that is why.
+- The old `submission/` folder at the root is orphaned. Delete it.
+
+**3. `scripts/train.sh` / `.bat` is new — every subsystem in one pass.** It asks
+`common/config` for `SUBSYSTEMS` and treats one as trainable exactly when it ships a
+`train.py`, the same way the app decides what it can predict, so nothing restates the
+list and a new subsystem joins by existing. ACV lands in *"no trainer, nothing to fit"*,
+which is correct: its ranking fits no parameters. Each subsystem runs as its own process,
+so one whose data is absent on that machine costs only itself; the script exits non-zero
+naming what failed. **It takes no arguments on purpose** — `--refresh` means something to
+rail and is an error everywhere else, so per-subsystem flags stay with the per-subsystem
+wrappers.
+
+**README.** Quick start is now one command, `./scripts/app.sh`, which is the whole setup.
+The `uv venv` / `uv pip` instructions are gone: **this venv has pip** (26.2.1), so the
+warning that it did not was stale and sent people around the install scripts. Training is
+documented per subsystem as its script plus the unified one, and the `python -c` predict
+one-liners are gone with it — `./submit.sh` is the documented way to produce the CSVs.
+The only raw reference left is `src.acv.report.confirmation`, kept because Jou's note says
+to read it before trusting a ranking and it has no CLI.
+
+
+### 2026-09-19 — `./submit.sh` was broken on a fresh clone, and the app it shipped could not predict
+
+Two faults in the submission path, both found by running `./submit.sh` end to end for
+the first time rather than by reading it.
+
+**1. Five wrappers were committed without their executable bit.** `scripts/generate.sh`,
+`scripts/render.sh` and all three `scripts/train_*.sh` were mode 100644 in git, so
+`./submit.sh` died on *"Permission denied"* at step 1 of 3 on any clean checkout, and
+so did the training and video wrappers the README documents. `chmod +x` on the five;
+the mode change is what git records. The `.bat` twins are unaffected, Windows has no
+executable bit. **Check this after any clone or any `git archive`.**
+
+**2. The `app/` we shipped reported every system as ready and failed on the first
+click.** `app/` carried no `outputs/models/`, and `services.is_available` only imports
+the predictor, so the board drew four ready systems and each one raised *"No Door
+checkpoint at .../app/outputs/models/door/classifier.joblib"* when used. The
+checkpoints were in the submission the whole time, in `Optional_Items/<Subsystem>/model/`,
+with nothing pointing the app at them. `package.copy_checkpoints` now lands each ready
+subsystem's `MODEL_DIRS` at the same path relative to `app/` that it has relative to
+the repo root, which is what makes it findable with no subsystem config change. All
+1.3 MB of it; the folder went 2.1 MB to 3.3 MB. **This is the 19:51 checkpoint problem
+closed for the submission folder.** The Cloud Run deploy still needs the same move,
+and [[deploy-gcloud]] §5 already describes it as `COPY models/ ./outputs/models/`.
+
+Verified by running all four subsystems through `services.run_prediction` from inside
+`submission/Group1/app`, with the repository's own `outputs/` out of reach: door 38
+rows, acv 1, rail 1, shm 1.
+
+**`app/` now holds what starts the app and nothing else.** It was the whole of `src/`
+plus every wrapper in `scripts/` plus `install.*`, `submit.*` and the project README.
+Two of those were worse than clutter: `scripts/render.sh` calls `src.video.render`,
+whose manim dependency `requirements.txt` deliberately lacks, and the train wrappers
+need a `data/` §4.1 says not to send back, so a judge exploring the folder found
+controls that error. It now ships `.streamlit/`, `requirements.txt`,
+`src/{__init__.py, app, common, door, acv, rail, shm}`, `outputs/models/` and one
+entry point. `src/submission/` and `src/video/` are gone from it, confirmed by grep
+that nothing the app loads imports either.
+
+**The entry point is `run.sh` / `run.bat` at the top of `app/`**, kept as real scripts
+under `src/submission/runner/` rather than as strings in the packager. The
+repository's own `scripts/app.sh` cannot serve: it climbs to a repository root that is
+not there and calls an `install.sh` that no longer ships. The runner creates `.venv`
+on first use, installs `requirements.txt`, and starts Streamlit. Its mode is **set to
+0755 by the packager rather than inherited**, because a lost executable bit is exactly
+what broke `./submit.sh`, and here the same bit is the only thing between a judge and
+the app.
+
+Proved by copying `submission/Group1/app` somewhere with no repository around it and
+running `./run.sh`: it built its own venv, installed, started, drew four ready systems,
+took an upload and returned the right Door verdict (8 of 38 abnormal), with the review
+download present, no exceptions and no console errors. **First launch on a fresh
+machine takes a minute or two** — pip, then a bytecode-cold first import of pandas,
+sklearn and openpyxl. After that the board is up **5.7 s** from a cold process and
+0.4 s on reload. Worth knowing before anyone films the demo on a clean machine.
+
+**Also added: the optional write-up now has a slot.** `write_up.<pdf|docx|md>` at the
+repository root is copied to the top of `Optional_Items/`, where §4.2 puts it, and its
+absence is reported at the end like the video's rather than stopping the build. New
+constants `WRITE_UP_DIR`, `WRITE_UP_STEM`, `WRITE_UP_EXTENSIONS` in
+`src/common/config.py`. New `tests/test_submission_package.py`, 6 tests, which had none: the app holds only
+the runnable set, the runner is executable, the checkpoints land where the copied app
+looks, and the write-up is placed or reported.
+
+**What `./submit.sh` does, confirmed against §4 by building it:** derives all four
+prediction CSVs itself and never reuses one left on disk, validates them, then writes
+`submission/<team>/` with `predictions.zip` flat at the top, `app/` once at the team
+root, and `Optional_Items/<Subsystem>/{code,model}/` under the organisers' own folder
+names. No dataset, no `04_Example_Submission/`, no `outputs/`. A CSV that exists but
+fails its schema still stops the build, deliberately: the organisers score the zip
+as-is. Everything else missing is a line under *"not submittable yet"* and the build
+carries on, because the video and the write-up are made last.
+
+**Affects: everyone.** `./submit.sh --team Group1` now runs to completion. Jermaine and
+Jou: your checkpoint travels inside `app/` automatically, with nothing to coordinate,
+as long as it is in `outputs/models/<sub>/` when the submission is built. Still
+outstanding and unchanged: the demo video, and a write-up if we want one.
+
+
 ### 2026-09-19 — Systems are queued and assessed one at a time; the board carries the live state
 
 Each system's assessment now runs off the script thread, so starting one no longer

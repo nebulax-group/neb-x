@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Bootstrap the one virtualenv for neb-x. Safe to re-run.
+#
+# Lives beside the wrappers that call it, but .venv belongs to the repository
+# rather than to scripts/, so this runs from the root like every other wrapper.
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 PYTHON="${PYTHON:-python3}"
 
 command -v "$PYTHON" >/dev/null 2>&1 || {
     echo "error: '$PYTHON' not found. Install Python 3.12+ and re-run." >&2
-    echo "       Override the interpreter with: PYTHON=python3.12 ./install.sh" >&2
+    echo "       Override the interpreter with: PYTHON=python3.12 ./scripts/install.sh" >&2
     exit 1
 }
 
@@ -30,7 +33,7 @@ fi
 VENV_PY=".venv/bin/python"
 
 "$VENV_PY" -m pip install --upgrade pip --quiet
-"$VENV_PY" -m pip install -r requirements.txt
+"$VENV_PY" -m pip install -r scripts/requirements.txt
 
 "$VENV_PY" - <<'PY'
 import importlib, sys

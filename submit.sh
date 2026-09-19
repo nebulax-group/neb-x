@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the submission end to end: ask who we are, run every subsystem over its
-# held-out test inputs, check what comes out, then package it into
-# submission/<team>/.
+# held-out test inputs, check what comes out, then package it into <team>/ at the
+# repository root. That folder is the upload, with nothing wrapped around it.
 #
 # The prediction CSVs are always regenerated here and never reused. A file left in
 # outputs/predictions/ by an earlier run or a browser download is stale by

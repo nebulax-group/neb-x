@@ -28,6 +28,9 @@ XLSX_EXTENSION = ".xlsx"
 SUPPORTED_DATA_EXTENSIONS = (CSV_EXTENSION, XLSX_EXTENSION)
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv")
 DEMO_VIDEO_STEM = "demo_video"
+# Section 4.2 names the optional write-up file, so the stem is theirs rather than ours.
+WRITE_UP_EXTENSIONS = (".pdf", ".docx", ".md")
+WRITE_UP_STEM = "write_up"
 IGNORED_DATA_FILE_PREFIXES = (".", "~$")
 DEFAULT_EXCEL_SHEET = 0
 
@@ -47,6 +50,9 @@ DOCS_DIR = REPO_ROOT / "docs"
 REFERENCE_DIR = REPO_ROOT / "reference"
 SUBMISSION_FORMAT_DIR = REFERENCE_DIR / "submission_format"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
+# The pinned dependencies live beside the wrappers that install them. Packaging copies
+# this file to the top of the shipped app/, where its runner expects it by bare name.
+REQUIREMENTS_PATH = SCRIPTS_DIR / "requirements.txt"
 
 # The scene sources are committed; every recording and every manim intermediate is
 # gitignored, being too large for git. Packaging copies the first video it finds into
@@ -59,11 +65,14 @@ VIDEO_MEDIA_DIR = VIDEO_DIR / "media"
 VIDEO_REQUIREMENTS_PATH = VIDEO_DIR / "requirements.txt"
 STREAMLIT_CONFIG_PATH = REPO_ROOT / ".streamlit" / "config.toml"
 
-# The folder we send. Regenerated from scratch by src/submission/package.py and never
-# committed, but it is a deliverable rather than an artefact of a model run, so it sits
-# at the root where whoever uploads it can find it without knowing the tree.
-SUBMISSION_DIR = REPO_ROOT / "submission"
-PREDICTIONS_ZIP_PATH = SUBMISSION_DIR / PREDICTIONS_ARCHIVE_NAME
+# Where packaging looks for the optional write-up: beside the README, named as section
+# 4.2 names it. One file needs no folder of its own.
+WRITE_UP_DIR = REPO_ROOT
+
+# Where the folder we send is built. It carries the team name and nothing else, so it
+# is made at the root rather than inside a wrapper folder: what gets uploaded is then
+# the folder itself, with no step in between that could send the wrapper by mistake.
+SUBMISSION_ROOT = REPO_ROOT
 
 OUTPUTS_DIR = REPO_ROOT / "outputs"
 MODELS_DIR = OUTPUTS_DIR / "models"

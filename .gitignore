@@ -1,3 +1,21 @@
+# --- Which top-level folders belong in git -----------------------------------
+# ./submit.sh builds the submission as <Team Name>/ right here at the root, and the
+# name is whatever the team registered, so no rule can match it by name. Ignore every
+# top-level folder instead and list the ones that are ours. Anything new at the root
+# is invisible to git until it gains a line here -- add one rather than wondering why
+# `git add` did nothing.
+/*/
+!/.claude/
+!/.streamlit/
+!/data/
+!/docs/
+!/outputs/
+!/reference/
+!/scripts/
+!/src/
+!/tests/
+!/video/
+
 # --- Virtual environments ---------------------------------------------------
 .venv/
 venv/
@@ -30,12 +48,6 @@ outputs/**
 !outputs/
 !outputs/*/
 !outputs/**/.gitkeep
-
-# --- The packaged submission ------------------------------------------------
-# The folder we send, rebuilt from scratch by src/submission/package.py every run.
-# Anchored: an unanchored rule would match src/submission/ as well and silently
-# keep the packaging code itself out of git.
-/submission/
 
 # --- Environment / secrets --------------------------------------------------
 .env

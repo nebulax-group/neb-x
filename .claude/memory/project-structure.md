@@ -25,7 +25,8 @@ neb-x/
 ├── README.md                     public-facing: what this is, how to set up
 ├── .gitignore
 ├── .venv/                        the ONE virtualenv (Python 3.14), gitignored
-├── requirements.txt              pinned deps                                    ✗
+├── submit.sh · submit.bat        generate, validate, package                     ✓
+├── <Team Name>/                  what ./submit.sh builds. The upload, gitignored ✓
 │
 ├── .claude/memory/               durable project facts, one file per topic
 │   ├── MEMORY.md                 the index
@@ -75,18 +76,18 @@ neb-x/
 │       ├── validate.py           check a CSV against reference/submission_format/                ✗
 │       └── package.py            the CSVs -> predictions.zip (flat, no subfolders)               ✗
 │
-├── scripts/                      thin wrappers, no logic of their own                            ✗
-│   ├── train.sh <subsystem>
-│   ├── predict.sh <subsystem>
+├── scripts/                      thin wrappers, no logic of their own                            ✓
+│   ├── requirements.txt          pinned deps, beside the install that reads them
+│   ├── install.sh · .bat         creates .venv; every other wrapper calls it when absent
+│   ├── train.sh                  every subsystem in one pass (train_<sub>.sh for one)
 │   ├── app.sh
-│   └── package.sh
+│   └── generate.sh · validate.sh · package.sh · check.sh · render.sh
 │
 └── outputs/                      everything generated, gitignored
     ├── models/<sub>/   checkpoints, plus any cached feature matrix
     ├── predictions/    the four *_predictions.csv
     ├── plots/          figures for the write-up
-    ├── logs/
-    └── submission/     the packaged <Team Name>/ folder
+    └── logs/
 ```
 
 Status column: ✓ exists and works, `~` exists but unrun or on a branch, ✗ planned. Reconciled

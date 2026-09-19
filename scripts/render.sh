@@ -9,21 +9,21 @@ STAMP=".venv/.requirements-sha"
 VIDEO_STAMP=".venv/.video-requirements-sha"
 
 if [ ! -d .venv ]; then
-    echo "no .venv yet -- running ./install.sh"
-    ./install.sh
+    echo "no .venv yet -- running ./scripts/install.sh"
+    ./scripts/install.sh
 fi
 
 # shellcheck disable=SC1091
 source .venv/bin/activate
 
-WANT="$(python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('requirements.txt').read_bytes()).hexdigest())")"
+WANT="$(python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('scripts/requirements.txt').read_bytes()).hexdigest())")"
 HAVE="$(cat "$STAMP" 2>/dev/null || true)"
 
 # Reinstall when requirements.txt has moved since the last run, so a teammate adding a
 # dependency does not leave everyone else on a stale venv that fails at import time.
 if [ "$WANT" != "$HAVE" ] || ! python -c "import pandas, numpy" >/dev/null 2>&1; then
     echo "installing requirements ..."
-    python -m pip install -r requirements.txt --quiet
+    python -m pip install -r scripts/requirements.txt --quiet
     printf '%s' "$WANT" >"$STAMP"
 else
     echo "requirements already satisfied"
