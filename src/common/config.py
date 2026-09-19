@@ -9,11 +9,31 @@ from pathlib import Path
 RANDOM_SEED = 42
 
 SUBSYSTEMS = ("door", "acv", "rail", "shm")
+
+# The organisers' own names for the four subsystems. Used for the folders under
+# Optional_Items/, which the problem statement spells out, and by the app so a judge
+# reads the same word on screen, in the info kits and in the submission folder.
+SUBSYSTEM_LABELS = {
+    "door": "Door",
+    "acv": "ACV",
+    "rail": "Rail Corrugation",
+    "shm": "SHM",
+}
+
+# Overridden with --team. The folder must carry the team name exactly as registered,
+# and nobody has recorded it yet, so this is a placeholder that says so when used.
+DEFAULT_TEAM_NAME = "neb-x"
 CSV_EXTENSION = ".csv"
 XLSX_EXTENSION = ".xlsx"
 SUPPORTED_DATA_EXTENSIONS = (CSV_EXTENSION, XLSX_EXTENSION)
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv")
+DEMO_VIDEO_STEM = "demo_video"
 IGNORED_DATA_FILE_PREFIXES = (".", "~$")
 DEFAULT_EXCEL_SHEET = 0
+
+# The organisers' own column name, shared by every subsystem whose rows name a
+# source file. Door is the exception and has no such column at all.
+FILE_ID_COLUMN = "file_id"
 
 PREDICTION_FILENAMES = {
     subsystem: f"{subsystem}_predictions{CSV_EXTENSION}" for subsystem in SUBSYSTEMS
@@ -28,13 +48,28 @@ REFERENCE_DIR = REPO_ROOT / "reference"
 SUBMISSION_FORMAT_DIR = REFERENCE_DIR / "submission_format"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 
+# The scene sources are committed; every recording and every manim intermediate is
+# gitignored, being too large for git. Packaging copies the first video it finds into
+# the submission, preferring the freshly stitched one in VIDEO_OUT_DIR.
+VIDEO_DIR = REPO_ROOT / "video"
+VIDEO_SRC_DIR = VIDEO_DIR / "src"
+VIDEO_OUT_DIR = VIDEO_DIR / "out"
+# manim's own working tree: the rendered clips and its partial-movie cache.
+VIDEO_MEDIA_DIR = VIDEO_DIR / "media"
+VIDEO_REQUIREMENTS_PATH = VIDEO_DIR / "requirements.txt"
+STREAMLIT_CONFIG_PATH = REPO_ROOT / ".streamlit" / "config.toml"
+
+# The folder we send. Regenerated from scratch by src/submission/package.py and never
+# committed, but it is a deliverable rather than an artefact of a model run, so it sits
+# at the root where whoever uploads it can find it without knowing the tree.
+SUBMISSION_DIR = REPO_ROOT / "submission"
+PREDICTIONS_ZIP_PATH = SUBMISSION_DIR / PREDICTIONS_ARCHIVE_NAME
+
 OUTPUTS_DIR = REPO_ROOT / "outputs"
 MODELS_DIR = OUTPUTS_DIR / "models"
 PREDICTIONS_DIR = OUTPUTS_DIR / "predictions"
 PLOTS_DIR = OUTPUTS_DIR / "plots"
 LOGS_DIR = OUTPUTS_DIR / "logs"
-SUBMISSION_DIR = OUTPUTS_DIR / "submission"
-PREDICTIONS_ZIP_PATH = SUBMISSION_DIR / PREDICTIONS_ARCHIVE_NAME
 
 DATA_DIRS = {subsystem: DATA_DIR / subsystem for subsystem in SUBSYSTEMS}
 

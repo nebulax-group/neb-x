@@ -11,6 +11,12 @@ the door, ACV and SHM entries were last checked 2026-09-18).
 - [Three-Person Work Split](team-split.md) — who owns which subsystem, the five checks that
   keep the split from costing score. **Read before starting work.**
 - [How to Work With Me](prompting.md) — ask before touching files; plan in chat first.
+- [Jou Yuan — Door and ACV](jouyuan.md) — what Jou Yuan owns, the measured data facts behind both
+  subsystems, and the design decisions already taken. **Door is scored on accuracy, not macro-F1.**
+- [Overfitting Audit](overfitting-audit.md) — what was measured to rule out overfitting on Door and
+  ACV, and the two limits the checks do not cover. **Quote these in the write-up.**
+- [Door & ACV Bench Notes](bench-notes-artifact.md) — published figures page, plus the CSV copies
+  of every ACV workbook under `outputs/explore/`.
 
 Per-subsystem build plans. The phases, what the data actually says, and what has already been
 ruled out — **read the one for your subsystem before writing any of its code:**
@@ -30,7 +36,8 @@ Per-person change logs. Append an entry when a change crosses a package boundary
 
 - [Wayne](wayne.md) — what Wayne changed, newest first.
 - [Jermaine](jermaine.md) — what Jermaine changed, newest first.
-- [Jou](jou.md) — what Jou changed, newest first.
+- [Jou](jou.md) — what Jou changed, newest first. **Read this one for cross-package changes;**
+  [jouyuan.md](jouyuan.md) is the Door/ACV knowledge, not a duplicate.
 
 ## Sources of truth, in order
 

@@ -11,3 +11,5 @@ streamlit==1.64.0        # the compulsory app
 # lightgbm is deliberately absent: its wheel needs libomp, which macOS does not ship,
 # so it installs but fails to import. sklearn's HistGradientBoostingClassifier is the
 # same algorithm with no native dependency. Not worth a broken teammate at hour seven.
+
+pytest==8.4.2           # dev only; not imported by the app or any src/ module

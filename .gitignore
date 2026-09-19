@@ -24,12 +24,18 @@ data/**
 !data/README.md
 
 # --- Generated artefacts ----------------------------------------------------
-# outputs/ is entirely generated: checkpoints, predictions, plots, logs, the
-# packaged submission. Keep the tree, ignore the contents.
+# outputs/ is entirely generated: checkpoints, predictions, plots, logs. Keep the
+# tree, ignore the contents.
 outputs/**
 !outputs/
 !outputs/*/
 !outputs/**/.gitkeep
+
+# --- The packaged submission ------------------------------------------------
+# The folder we send, rebuilt from scratch by src/submission/package.py every run.
+# Anchored: an unanchored rule would match src/submission/ as well and silently
+# keep the packaging code itself out of git.
+/submission/
 
 # --- Environment / secrets --------------------------------------------------
 .env
@@ -42,3 +48,14 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# --- The pitch video --------------------------------------------------------
+# The scene sources and the render's own requirements are code and travel. Every
+# recording, the stitched cut and manim's working tree are too large to commit.
+video/**
+!video/
+!video/*/
+!video/README.md
+!video/requirements.txt
+!video/src/*.py
+!video/out/.gitkeep
