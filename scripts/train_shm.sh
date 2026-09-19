@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Thin wrapper: build the submission folder, creating or refreshing .venv first.
-# See src/submission/package.py.
+# Thin wrapper: fit the SHM fatigue curve, creating or refreshing .venv first.
+# See src/shm/train.py.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -12,11 +12,8 @@ if [ ! -d .venv ]; then
     ./install.sh
 fi
 
-# A Windows venv puts activate under Scripts/ rather than bin/.
-ACTIVATE=".venv/bin/activate"
-[ -f "$ACTIVATE" ] || ACTIVATE=".venv/Scripts/activate"
 # shellcheck disable=SC1091
-source "$ACTIVATE"
+source .venv/bin/activate
 
 WANT="$(python -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('requirements.txt').read_bytes()).hexdigest())")"
 HAVE="$(cat "$STAMP" 2>/dev/null || true)"
@@ -32,5 +29,6 @@ else
 fi
 
 echo
-# Pass --team "Your Name" through; the module decides the layout, not this script.
-exec python -m src.submission.package "$@"
+# Pass --output PATH through to write the checkpoint somewhere other than the default;
+# the module owns that default, not this script.
+exec python -m src.shm.train "$@"

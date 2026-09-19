@@ -1,6 +1,6 @@
 @echo off
-REM Thin wrapper: check the prediction CSVs, creating or refreshing .venv first.
-REM See src\submission\validate.py.
+REM Thin wrapper: write every prediction CSV, creating or refreshing .venv first.
+REM See src\submission\generate.py.
 setlocal
 cd /d "%~dp0.."
 
@@ -35,7 +35,7 @@ REM otherwise writes "ECHO is on." to the stamp and the hash to the screen.
 
 :run
 echo.
-REM No arguments sweeps every subsystem and skips the ones nobody has produced yet;
-REM a path checks that one file. The module decides, not this script.
-"%VENV_PY%" -m src.submission.validate %*
+REM Takes no arguments: a partial run would leave one subsystem's CSV older than the
+REM rest, which is the state this step exists to make impossible. The module decides.
+"%VENV_PY%" -m src.submission.generate
 exit /b %errorlevel%

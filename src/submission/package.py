@@ -6,7 +6,7 @@ The layout is the one in ``docs/problem_statement.md`` section 4.1, which is how
 the organisers identify and score a submission:
 
     <Team Name>/
-    |-- demo_video.<mp4|mov|...>     added by hand, this cannot make it
+    |-- demo_video.<mp4|mov|...>     from video/out/, or a recording left in video/
     |-- predictions.zip              flat, only the CSVs, no subfolders
     |-- app/                         the source a judge runs
     `-- Optional_Items/
@@ -16,8 +16,8 @@ Only subsystems that have produced a valid prediction file are included. A CSV
 that fails validation stops the build rather than being zipped, because the
 organisers score the zip directly and nothing downstream would notice.
 
-This module and ``train``/``predict`` are the only ones allowed to write under
-``outputs/``, and everything it writes is regenerable.
+Everything is written under ``submission/`` at the repository root, rebuilt from
+scratch on every run and never committed.
 """
 
 import argparse
@@ -38,6 +38,7 @@ from src.common.config import (
     SUBSYSTEMS,
     VIDEO_DIR,
     VIDEO_EXTENSIONS,
+    VIDEO_OUT_DIR,
 )
 
 from .validate import validate_subsystem
@@ -132,27 +133,33 @@ def copy_optional(subsystems: list[str], destination: Path) -> list[str]:
     return written
 
 
-def copy_video(destination: Path) -> Path | None:
-    """Copy the demo video into the submission, or None if there is not one yet.
+def find_video() -> Path | None:
+    """The video to submit, or None if nobody has made one yet.
 
-    Missing is a normal state rather than an error: the video is recorded once, at
-    the end, and everything else has to be packageable before then.
+    Missing is a normal state rather than an error: the video is made once, at the
+    end, and everything else has to be packageable before then.
     """
-    if not VIDEO_DIR.is_dir():
-        return None
+    # The rendered cut wins over a loose recording in video/, which is as likely to
+    # be a superseded take nobody deleted as it is to be the one we mean to send.
+    for folder in (VIDEO_OUT_DIR, VIDEO_DIR):
+        if not folder.is_dir():
+            continue
+        found = sorted(
+            item
+            for item in folder.iterdir()
+            if item.is_file() and item.suffix.lower() in VIDEO_EXTENSIONS
+        )
+        if found:
+            return found[0]
+    return None
 
-    found = sorted(
-        item
-        for item in VIDEO_DIR.iterdir()
-        if item.is_file() and item.suffix.lower() in VIDEO_EXTENSIONS
-    )
-    if not found:
-        return None
 
-    # Named for the deliverable rather than for whatever the screen recorder called
-    # it, but the extension is kept so the file still plays.
-    target = destination / f"{DEMO_VIDEO_STEM}{found[0].suffix.lower()}"
-    shutil.copy2(found[0], target)
+def copy_video(source: Path, destination: Path) -> Path:
+    """Copy the demo video into the submission under the name section 4.1 asks for."""
+    # Named for the deliverable rather than for whatever recorded it, but the
+    # extension is kept so the file still plays.
+    target = destination / f"{DEMO_VIDEO_STEM}{source.suffix.lower()}"
+    shutil.copy2(source, target)
     return target
 
 
@@ -184,7 +191,8 @@ def build(team: str = DEFAULT_TEAM_NAME, root: Path | None = None) -> Path:
     write_archive(ready, destination)
     missing_app = copy_app(destination)
     optional = copy_optional(ready, destination)
-    video = copy_video(destination)
+    source = find_video()
+    video = None if source is None else copy_video(source, destination)
 
     print(f"packaged {len(ready)} of {len(SUBSYSTEMS)} subsystems: {', '.join(ready)}")
     print(f"  {PREDICTIONS_ARCHIVE_NAME}  {', '.join(PREDICTION_PATHS[s].name for s in ready)}")
@@ -192,7 +200,7 @@ def build(team: str = DEFAULT_TEAM_NAME, root: Path | None = None) -> Path:
     if optional:
         print(f"  {OPTIONAL_DIR_NAME}/  {', '.join(optional)}")
     if video is not None:
-        print(f"  {video.name}          from {VIDEO_DIR}")
+        print(f"  {video.name}          from {source.parent}")
 
     print(f"\nsubmission folder: {destination}")
 
@@ -201,8 +209,9 @@ def build(team: str = DEFAULT_TEAM_NAME, root: Path | None = None) -> Path:
         outstanding.append(f"file not found, skipped: {', '.join(missing_app)}")
     if video is None:
         outstanding.append(
-            f"file not found, skipped: the demo video. Put the recording in {VIDEO_DIR} "
-            "and run this again. Section 4.1 does not score a subsystem without it."
+            "file not found, skipped: the demo video. Render it with scripts/render.sh, "
+            f"or put a recording in {VIDEO_DIR}, then run this again. Section 4.1 does "
+            "not score a subsystem without it."
         )
     if team == DEFAULT_TEAM_NAME:
         outstanding.append(

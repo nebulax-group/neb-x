@@ -1,7 +1,10 @@
-"""Present a finished prediction table, and the two states where there isn't one.
+"""Present a finished prediction: what was run, the rows themselves, and the download.
 
 Rendering only. The frame arrives already in its subsystem's submission schema;
-nothing here inspects or reshapes its columns.
+nothing here inspects or reshapes its columns. The pieces are drawn separately
+because the result area shows different ones in each of its two modes; which
+appear where is decided in ``src/app/ui/assessment.py``. A run that produced no
+frame at all is ``src/app/ui/failure.py``, not a state of this file.
 """
 
 from html import escape
@@ -9,14 +12,7 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-from src.app.config import (
-    DOWNLOAD_LABEL,
-    ERROR_HINT,
-    READOUT_CAPTIONS,
-    RESULTS_HEADING,
-    UNAVAILABLE_MESSAGE,
-)
-from src.app.ui import section
+from src.app.config import DOWNLOAD_LABEL, READOUT_CAPTIONS
 
 # Left-aligned at column zero on purpose: st.markdown reads four leading spaces as
 # an indented code block and would print this markup instead of rendering it.
@@ -27,9 +23,8 @@ _READOUT = """<dl class="nx-readout">
 </dl>"""
 
 
-def render_results(frame: pd.DataFrame, download_name: str, subsystem_label: str) -> None:
-    """Show the prediction rows and offer them as the submission CSV."""
-    section.render(RESULTS_HEADING)
+def render_readout(frame: pd.DataFrame, download_name: str, subsystem_label: str) -> None:
+    """Say what was run, over how many rows, and what the download will be called."""
     st.markdown(
         _READOUT.format(
             system=escape(subsystem_label),
@@ -39,7 +34,19 @@ def render_results(frame: pd.DataFrame, download_name: str, subsystem_label: str
         ),
         unsafe_allow_html=True,
     )
+
+
+def render_table(frame: pd.DataFrame) -> None:
+    """Show the submission rows exactly as they will be written."""
     st.dataframe(frame, width="stretch", hide_index=True)
+
+
+def render_download(frame: pd.DataFrame, download_name: str, key: str) -> None:
+    """Offer the rows as the submission CSV.
+
+    Keyed because both modes of the result area draw this button, and two Streamlit
+    widgets of the same type in one run must not share an identity.
+    """
     st.download_button(
         DOWNLOAD_LABEL,
         # This file is scored as-is against a fixed column list. Writing the index
@@ -48,14 +55,5 @@ def render_results(frame: pd.DataFrame, download_name: str, subsystem_label: str
         file_name=download_name,
         mime="text/csv",
         type="primary",
+        key=key,
     )
-
-
-def render_unavailable(subsystem_label: str) -> None:
-    """Say plainly that this subsystem has no model yet."""
-    st.info(UNAVAILABLE_MESSAGE.format(label=subsystem_label))
-
-
-def render_error(message: str) -> None:
-    """Show a failure as a sentence, not a traceback."""
-    st.error(f"{message}\n\n{ERROR_HINT}")

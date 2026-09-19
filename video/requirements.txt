@@ -1,0 +1,9 @@
+# The render's own dependencies, deliberately kept out of the root requirements.txt:
+# manim pulls cairo, pango and a system ffmpeg, and everyone installs the root file,
+# the deployed app included. scripts/render.sh installs this one on top of it.
+#
+# Ranged rather than pinned, unlike the root file. This is one person's tool on one
+# machine rather than something three machines must resolve identically, and manim's
+# supported Python versions move faster than our pins do.
+
+manim>=0.19,<0.20

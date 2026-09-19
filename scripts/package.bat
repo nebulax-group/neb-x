@@ -12,7 +12,9 @@ if not exist ".venv" (
 set "VENV_PY=.venv\Scripts\python.exe"
 set "STAMP=.venv\.requirements-sha"
 
-for /f %%H in ('"%VENV_PY%" -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('requirements.txt').read_bytes()).hexdigest())"') do set "WANT=%%H"
+REM %VENV_PY% is unquoted deliberately: cmd cannot parse a quoted path inside a
+REM for /f command string, and the relative path it holds has no spaces in it.
+for /f "delims=" %%H in ('%VENV_PY% -c "import hashlib, pathlib; print(hashlib.sha256(pathlib.Path('requirements.txt').read_bytes()).hexdigest())"') do set "WANT=%%H"
 set "HAVE="
 if exist "%STAMP%" set /p HAVE=<"%STAMP%"
 
@@ -27,7 +29,9 @@ goto run
 :install
 echo installing requirements ...
 "%VENV_PY%" -m pip install -r requirements.txt --quiet || exit /b 1
->"%STAMP%" echo|set /p="%WANT%"
+REM Parenthesised so the redirect lands on set /p rather than on echo, which
+REM otherwise writes "ECHO is on." to the stamp and the hash to the screen.
+(echo|set /p="%WANT%")>"%STAMP%"
 
 :run
 echo.

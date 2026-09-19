@@ -1,5 +1,28 @@
 # Wayne — Change Log
 
+### 2026-09-19 — Finish upload recovery, Door selection and assessment guidance
+
+Continued the partial app work. `services.run_prediction` now asks an optional
+`src.<subsystem>.validate.validate(inputs)` to check recordings before loading a model.
+Door, ACV and SHM implement it; prediction CSV schemas and model calculations are unchanged.
+Failures distinguish bad uploads, unreadable files, missing setup and processing errors.
+The page shows expected layouts, recovery instructions and expandable diagnostics.
+
+Door's strip uses native keyboard/touch/click selection, displays start/end times,
+operation and status, and retains selection through reruns using the existing reading cache.
+Strip subjects identify the source recording. Verdict panels may now include a
+`recommendation` dictionary containing `title` and `steps`, supplied by the subsystem.
+The app renders those instructions in both Answer and Details. SHM guidance explicitly
+states that prior damage must be reviewed separately from the uploaded recording.
+
+Validation: 115 app, Door, ACV and submission tests passed. Headless browser checks
+cover wrong-system feedback, expandable diagnostics, Door selection persistence,
+keyboard interaction, CSV download, 375px/mobile/landscape layouts, and real ACV/SHM
+recordings. Local screenshots are under `outputs/logs/`.
+
+**Affects:** Jou (Door/ACV validation and verdict contract), Wayne (SHM/app). A future
+subsystem can implement the optional validator and recommendation without app routing changes.
+
 What Wayne changed, newest first. One entry per change the other two might depend on.
 
 **Why:** the three of us work on mutually exclusive packages ([[team-split]]), so nobody reads
@@ -56,6 +79,47 @@ would be wrong without. This applies to every file written for this project, by 
 **Why:** what forced it.
 **Affects:** who has to do something differently, or "nobody".
 ```
+
+### 2026-09-19 06:31 - The organisers' FAQ makes the interface half the problem
+
+**What.** An organisers' FAQ answer, reported by Wayne, splits PS3 into two parts. Part 1 is the
+model, and they say so plainly: the ML solution is *"intended to be relatively achievable"* and
+*"serves as a baseline for your submission to be compliant."* Part 2 is the interface, and it
+names two readers:
+
+- **the operator**, who has to use this information for **split-second judgements**;
+- **a new engineer**, who may not be familiar with the data parameters or train behaviour.
+
+The ask is to translate *"such technically complex information"* for those two *"in a user-friendly
+interface so they can act on this information"*.
+
+**Why this changes the weighting.** [[team-split]] already argued the app carries Ease of Use
+outright and contributes to Problem Fit. The FAQ goes further: a good model is the *floor*, not the
+differentiator. Nothing in the metric tables or the info kits says this — it exists only in the FAQ
+— so it belongs in memory or it is lost.
+
+It also settles something the app has been guessing at. `src/app/config.py` writes its blurbs for
+"someone who maintains trains rather than someone who wrote the model", but that was house style,
+not a brief. The two readers are now named, and they want different things: the operator wants a
+decision and its urgency, the new engineer wants to know why the system reached it.
+
+**The gap, as the app stands.** Recorded as a gap, not a plan — no decision taken here:
+
+1. **The results screen shows the submission CSV.** `ui/results.py` renders the scored artefact
+   verbatim — `start_time,end_time,prediction` for door, a `|`-separated rank string for acv. That
+   is right for the judge and close to useless for an operator on a platform.
+2. **Only SHM explains itself.** `explain` is optional by design in `app/services.py`, and three of
+   the four subsystems do not offer it.
+3. **Nothing on screen carries urgency.** The palette deliberately holds green/amber/red back "for
+   signal aspects — they carry meaning a subsystem supplies, never a severity the app invented".
+   The FAQ implies the subsystems should now supply it: a rank or a damage figure is not yet an
+   answer to "do I act on this today".
+
+**Affects.** Everyone, and it lands in each person's own files rather than in shared ones —
+[[team-split]] gives rail's view to Jermaine, door and acv to Jou, shm to Wayne. If we act on this,
+the per-subsystem work is an `explain` module and a severity the subsystem decides, not a change to
+the app shell; the shell already draws whatever panels it is handed and never branches on which
+subsystem sent them.
 
 ### 2026-09-19 00:45 - Merge and deploy plan for the prototype URL
 

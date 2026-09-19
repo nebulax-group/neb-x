@@ -9,6 +9,8 @@ Charts are Altair because Streamlit already depends on it, and because it draws
 SVG — text stays crisp and selectable when the demo video is scaled up.
 """
 
+import hashlib
+import json
 import math
 from html import escape
 from typing import Any
@@ -32,10 +34,16 @@ from src.app.config import (
     PALETTE,
     PANEL_STATE_KEY,
     SANS_STACK,
+    SEVERITY_RESTING,
+    SEVERITY_WORDS,
     STEP_BACK,
     STEP_COUNTER,
     STEP_NEXT,
     STEP_NUMBER,
+    STRIP_HEAD_LABEL,
+    STRIP_PICK_HELP,
+    STRIP_PICK_LABEL,
+    STRIP_TAIL_LABEL,
     TRACE_PLOT_HEIGHT,
 )
 
@@ -63,7 +71,44 @@ _DECK_STATUS = """<div class="nx-deck-status">
 {subject}
 </div>"""
 
+_PANEL_HEAD = """<div class="nx-deck-status">
+<span class="nx-deck-title">{title}</span>
+{subject}
+</div>"""
+
 _PANEL_CAPTION = '<p class="nx-panel-caption">{caption}</p>'
+_PANEL_SUBJECT = '<span class="nx-panel-subject">{subject}</span>'
+
+_STRIP = """<div class="nx-strip-ends">
+<span class="nx-strip-end nx-strip-head">{cab}<span class="nx-strip-end-label">{head}</span></span>
+<span class="nx-strip-end nx-strip-tail">{cab}<span class="nx-strip-end-label">{tail}</span></span>
+</div>"""
+_STRIP_KEY = '<span class="nx-strip-key"><span class="nx-strip-chip {state}"></span>{label}</span>'
+
+# A driving cab in profile, nose outwards, drawn once and mirrored for the far end.
+# Inline SVG rather than a character or an emoji, which the masthead mark avoids for
+# the same reason: those render differently on every machine the demo is watched on.
+# Colour is left to the stylesheet through currentColor.
+_STRIP_CAB = (
+    '<svg class="nx-strip-cab" viewBox="0 0 44 38" preserveAspectRatio="xMidYMax meet"'
+    ' aria-hidden="true" focusable="false">'
+    '<path class="nx-cab-shell" d="M44 34.4H10.2C6.2 34.4 3 31.2 3 27.2V21.8'
+    'L13.4 5.2C14 4.2 15 3.6 16.2 3.5L44 3.4"/>'
+    '<path class="nx-cab-glass" d="M7.8 18.6L14.6 7.6H20.2V18.6Z"/>'
+    '<rect class="nx-cab-glass" x="23.6" y="7.6" width="17.6" height="8.4" rx="1.3"/>'
+    '<path class="nx-cab-solebar" d="M5.2 25.4H44"/>'
+    '<circle class="nx-cab-lamp" cx="7.6" cy="29.8" r="2.1"/>'
+    "</svg>"
+)
+
+
+def _state_class(state: Any) -> str:
+    """The class for a subsystem-supplied severity, empty when the palette has none.
+
+    Interpolated into a class attribute, so an unrecognised value must contribute
+    nothing rather than be passed through or silently recoloured.
+    """
+    return f"nx-sev-{state}" if state in SEVERITY_WORDS else ""
 
 
 # Vega-Lite merges a layered chart down to one axis per channel, and a single
@@ -297,16 +342,88 @@ def _render_line(panel: dict[str, Any]) -> None:
     _draw([zero, line], _chart_height(TRACE_PLOT_HEIGHT))
 
 
+def _lead_cell(cells: list[dict[str, Any]]) -> int:
+    """Which cell the strip opens on before anything has been picked.
+
+    The first raised cell, not the first cell. A reader arrives here from a verdict
+    that has just counted the raised ones, and where the first of them falls in the
+    run is the question the coloured blocks alone cannot answer. A run with nothing
+    raised opens on its first cell, which is where the reading starts anyway.
+    """
+    for index, cell in enumerate(cells):
+        state = cell.get("state")
+        if state in SEVERITY_WORDS and state != SEVERITY_RESTING:
+            return index
+    return 0
+
+
+def _render_strip(panel: dict[str, Any]) -> None:
+    """Every event in the order it happened, each coloured by its own severity.
+
+    Native radios retain selection through reruns and offer click, tap and keyboard
+    interaction. The cached reading is reused when selection changes. Keys include
+    the content so a different recording cannot inherit an unrelated cycle number.
+    """
+    details = [str(cell.get("detail", "")) for cell in panel["cells"]]
+    fingerprint = hashlib.sha256(json.dumps(panel, sort_keys=True, default=str).encode()).hexdigest()
+    container_key = f"nx-strip-{fingerprint}"
+    selector = f".st-key-{container_key} [data-testid=stRadioGroup] > div"
+    # Only known palette tokens enter CSS; every subsystem-supplied word is rendered
+    # as text. Each radio keeps a visible number even at phone width.
+    colours = "".join(
+        f"{selector}:nth-child({index + 1}) [data-testid=stRadioOption] {{ --nx-sev: var(--nx-{cell['state']}); }}"
+        + (
+            f"{selector}:nth-child({index + 1}) [data-testid=stRadioOption] {{ background: var(--nx-sev); color: var(--nx-abyss); }}"
+            if cell["state"] != SEVERITY_RESTING else ""
+        )
+        for index, cell in enumerate(panel["cells"])
+        if cell.get("state") in SEVERITY_WORDS
+    )
+    keys = "".join(
+        _STRIP_KEY.format(
+            state=_state_class(key.get("state")), label=escape(str(key["label"]))
+        )
+        for key in panel.get("legend", ())
+    )
+    st.markdown(f"<style>{colours}</style>", unsafe_allow_html=True)
+    with st.container(key=container_key):
+        st.markdown(
+            _STRIP.format(
+                cab=_STRIP_CAB,
+                head=escape(str(panel.get("head", STRIP_HEAD_LABEL))),
+                tail=escape(str(panel.get("tail", STRIP_TAIL_LABEL))),
+            ),
+            unsafe_allow_html=True,
+        )
+        selected = st.radio(
+            STRIP_PICK_LABEL,
+            range(len(panel["cells"])),
+            index=_lead_cell(panel["cells"]),
+            format_func=lambda index: str(panel["cells"][index]["label"]),
+            key=f"nx-cycle-choice-{fingerprint}",
+            horizontal=True,
+            label_visibility="collapsed",
+            help=STRIP_PICK_HELP,
+            persist_state="session",
+        )
+        st.markdown(
+            f'<p class="nx-strip-detail" role="status" aria-live="polite">{escape(details[selected])}</p>',
+            unsafe_allow_html=True,
+        )
+    st.markdown(f'<p class="nx-strip-legend">{keys}</p>', unsafe_allow_html=True)
+
+
 _RENDERERS = {
     "bullet": _render_bullet,
     "bars": _render_bars,
     "metrics": _render_metrics,
     "line": _render_line,
+    "strip": _render_strip,
 }
 
 
 def _has_content(panel: dict[str, Any]) -> bool:
-    for key in ("rows", "items"):
+    for key in ("rows", "items", "cells"):
         if key in panel:
             return bool(panel[key])
     if "points" in panel:
@@ -333,7 +450,7 @@ def _render_rail(panels: list[dict[str, Any]], index: int) -> None:
             counter=escape(STEP_COUNTER.format(current=index + 1, total=count)),
             title=escape(panels[index]["title"]),
             subject=(
-                f'<span class="nx-panel-subject">{escape(subject)}</span>'
+                _PANEL_SUBJECT.format(subject=escape(subject))
                 if (subject := panels[index].get("subject"))
                 else ""
             ),
@@ -378,6 +495,35 @@ def _render_rail(panels: list[dict[str, Any]], index: int) -> None:
                 )
 
 
+def _render_body(panel: dict[str, Any]) -> None:
+    if caption := panel.get("caption"):
+        st.markdown(_PANEL_CAPTION.format(caption=escape(caption)), unsafe_allow_html=True)
+
+    renderer = _RENDERERS.get(panel["kind"])
+    if renderer is None:
+        st.warning(UNKNOWN_PANEL_MESSAGE.format(kind=panel["kind"]))
+    elif not _has_content(panel):
+        st.caption(EMPTY_PANEL_MESSAGE)
+    else:
+        renderer(panel)
+
+
+def render_panel(panel: dict[str, Any]) -> None:
+    """Draw one panel alone, with its own head in place of the deck's rail."""
+    st.markdown(
+        _PANEL_HEAD.format(
+            title=escape(panel["title"]),
+            subject=(
+                _PANEL_SUBJECT.format(subject=escape(subject))
+                if (subject := panel.get("subject"))
+                else ""
+            ),
+        ),
+        unsafe_allow_html=True,
+    )
+    _render_body(panel)
+
+
 def render(panels: list[dict[str, Any]]) -> None:
     """Draw the panels as a deck, one step at a time. Silent when there are none."""
     if not panels:
@@ -390,15 +536,4 @@ def render(panels: list[dict[str, Any]]) -> None:
 
     index = _current_step(len(panels))
     _render_rail(panels, index)
-
-    panel = panels[index]
-    if caption := panel.get("caption"):
-        st.markdown(_PANEL_CAPTION.format(caption=escape(caption)), unsafe_allow_html=True)
-
-    renderer = _RENDERERS.get(panel["kind"])
-    if renderer is None:
-        st.warning(UNKNOWN_PANEL_MESSAGE.format(kind=panel["kind"]))
-    elif not _has_content(panel):
-        st.caption(EMPTY_PANEL_MESSAGE)
-    else:
-        renderer(panel)
+    _render_body(panels[index])

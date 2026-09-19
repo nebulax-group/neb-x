@@ -36,6 +36,16 @@ CYCLE_COLUMNS = 3
 MIN_DAMAGE = 0.0
 FAILURE_DAMAGE = 1.0
 
+# The severities this subsystem can report, as the app's panel protocol names them.
+SEVERITY_CLEAR = "clear"
+SEVERITY_CAUTION = "caution"
+SEVERITY_DANGER = "danger"
+
+# One more recording like the one measured. Below this the next run of the same duty
+# takes the structure past D = 1, which is the only threshold the Info Kit gives
+# (§1.3.1) - the alert is derived from it rather than being a band of our own.
+RUNS_REMAINING_ALERT = 1.0
+
 # Mean of the 64 training labels; the banked prediction until a model exists.
 BASELINE_DAMAGE = 0.23
 
@@ -67,4 +77,32 @@ CONCENTRATION_BANDS = (
     (0.01, "Next 0.9%"),
     (0.10, "Next 9%"),
     (1.0, "Smallest 90%"),
+)
+
+RECOMMENDATIONS = {
+    SEVERITY_CLEAR: {
+        "title": "Record this estimate and review the accumulated history",
+        "steps": (
+            "Download the predictions and associate each recording with its measurement point and collection period.",
+            "Compare with earlier recordings from the same point and review the accumulated damage with the maintenance team.",
+        ),
+    },
+    SEVERITY_CAUTION: {
+        "title": "Prioritise an engineering review of {file}",
+        "steps": (
+            "Share this file and its damage estimate with the structural maintenance team for review.",
+            "Check the measurement point's earlier loading history and agree the next inspection under the maintenance procedure.",
+        ),
+    },
+    SEVERITY_DANGER: {
+        "title": "Escalate {file} for an urgent structural review",
+        "steps": (
+            "Share the source recording and downloaded predictions with the responsible structural engineer; this estimate reaches the model's fatigue limit.",
+            "Follow the depot's escalation and inspection procedure to determine the operational response.",
+        ),
+    },
+}
+RECOMMENDATION_SCOPE = (
+    "This estimate covers the uploaded recording. Check prior damage separately; "
+    "the repeat-run estimate assumes the same loading and no earlier damage."
 )

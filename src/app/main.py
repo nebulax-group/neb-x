@@ -1,8 +1,9 @@
 """The app's entry point and routing: pick a system, add files, predict, download.
 
 Run from the repository root with ``streamlit run src/app/main.py``. Screens live
-in ``src/app/ui/`` and the subsystem calls in ``src/app/services.py``; this file
-holds neither, and never branches on which subsystem was chosen.
+in ``src/app/ui/``, the subsystem calls in ``src/app/services.py`` and the promise
+that each one runs once in ``src/app/cache.py``; this file holds none of the three,
+and never branches on which subsystem was chosen.
 """
 
 import sys
@@ -17,8 +18,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.app import config, services  # noqa: E402
-from src.app.ui import board, explain, masthead, results, section, theme, upload  # noqa: E402
+from src.app import cache, config, services  # noqa: E402
+from src.app.ui import assessment, board, failure, masthead, section, theme, upload  # noqa: E402
 
 
 def main() -> None:
@@ -50,7 +51,7 @@ def main() -> None:
     # The board disables a system with no model, so this only fires if one goes
     # missing between reruns — still said out loud rather than crashed on.
     if not available[subsystem]:
-        results.render_unavailable(label)
+        failure.render_unavailable(subsystem, available)
         return
 
     uploads = upload.render_uploader(label, subsystem)
@@ -59,26 +60,19 @@ def main() -> None:
         return
 
     try:
-        staged = services.stage_uploads(uploads)
         with st.spinner(config.SPINNER_MESSAGE.format(label=label)):
-            frame = services.run_prediction(subsystem, staged)
-    except Exception as exc:  # a non-technical user needs a sentence, not a traceback
-        results.render_error(str(exc))
+            answer = cache.reading(subsystem, uploads)
+    except Exception as exc:  # a non-technical user needs a way out, not a traceback
+        failure.render(services.describe_failure(exc, uploads), subsystem, available)
         return
 
-    results.render_results(frame, services.prediction_filename(subsystem), label)
-
-    # Caught separately, and after the results are on screen: the prediction is the
-    # compulsory deliverable, and losing it because an optional chart failed would be
-    # the wrong trade. The failure is still stated rather than swallowed.
-    try:
-        with st.spinner(config.SPINNER_MESSAGE.format(label=label)):
-            panels = services.explain_prediction(subsystem, staged)
-    except Exception as exc:
-        st.caption(config.EXPLAIN_FAILED.format(reason=exc))
-        return
-
-    explain.render(panels)
+    assessment.render(
+        answer.frame,
+        services.prediction_filename(subsystem),
+        label,
+        answer.panels,
+        answer.explain_failure,
+    )
 
 
 if __name__ == "__main__":
