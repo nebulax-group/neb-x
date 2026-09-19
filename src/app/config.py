@@ -45,7 +45,7 @@ UPLOAD_REQUIREMENTS = {
     "door": "Upload exactly one continuous Door recording, with a header row containing Datetime, Motor current(mA), Door is opening and Door is closing.",
     "acv": "Upload one or more ACV case files with Car NN - … columns for cabin temperature and cooling setpoint. Use recordings, not the labels file.",
     "shm": "Upload one or more stress histories: one numeric column, no header, and at least two samples per file. Use recordings, not Train_Labels.csv.",
-    "rail": "Upload the axle-box vibration recording for Rail Corrugation when its model is available.",
+    "rail": "Upload one or more axle-box recordings: 129 columns starting with Rotating speed, then vibration and shock for each of the 64 axle boxes, one second at 10,000 samples per file.",
 }
 UPLOAD_WAITING = "Add at least one file to run {label}."
 SPINNER_MESSAGE = "Running the {label} model..."

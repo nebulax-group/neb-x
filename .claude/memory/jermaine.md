@@ -24,6 +24,170 @@ serial loop; start extraction first and never block on the full run. See [[team-
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-19 — rail implements the maintenance handoff, so it stops reporting itself incomplete
+
+**What:** new `src/rail/handoff.py` — `build(inputs, frame, panels)` returning the contract
+`src/app/services.review_report` asks for, modelled on `src/shm/handoff.py` and
+`src/acv/handoff.py`. A finding is a recording the model named a rail for; Normal recordings are
+not findings. Every number comes back through `explain._read_batch`, the same pass the panels are
+drawn from, so the folder a depot receives cannot disagree with the screen it came from.
+`tests/rail/test_handoff.py`, 9 tests.
+
+**Why:** `workspace.assess` catches everything `review_report` raises, so rail's missing module was
+never a crash — it was worse. Rail was the only subsystem rendering as *"Evidence incomplete · App
+maintainer review needed"*, and the only folder in the review ZIP reading *"assessment exists, but
+review evidence is incomplete. Do not interpret this as no findings."* That ZIP is a graded
+deliverable.
+
+Two things worth knowing if anyone else writes one of these:
+
+- **`app/handoff.chart_svg` raises on a non-finite bar, and `workspace.assess` swallows it into
+  "incomplete".** One bad row therefore costs the whole subsystem's report, not the row. Rail's
+  contrast is NaN on a stationary recording, so a fault called on a stopped train is listed as a
+  finding with no margin and contributes no bar. Forced in the tests rather than waited for.
+- **`csv.DictWriter` takes its column names from `records[0]`** and raises on any later row
+  carrying a key those do not name, so every finding has to have identical keys.
+
+`model_probability` goes through `explain._confidence`, not `round()`: a bare `1.0` in a column a
+depot reads is exactly the certainty that decision exists to avoid claiming.
+
+Verified end to end against `origin/main`'s real `app/handoff.py` out of tree (rail is not merged
+with it yet): chart renders, ZIP builds, rail's `README.txt` no longer says incomplete.
+
+**Affects:** Wayne — rail now answers `review_report` like the other three, so the handoff panel
+and the review package stop flagging it for maintainer review. Nothing in the app changes. Jou —
+nobody.
+
+### 2026-09-19 — rail has a test suite, and it found one failure the app was showing wrong
+
+**What:** new `tests/rail/` — 90 tests across config, speed, dataset, features, predict, explain,
+train and one file that drives rail through `src/app/services.py` rather than through pytest.
+33 s, on the four named recordings in its `conftest.py` and the real checkpoint.
+
+Two code changes came out of writing them, both in `src/rail/`:
+
+- **`validate.py` now reads the whole file, not just the header.** The sample-count and finiteness
+  checks lived only in `dataset.load_recording`, which runs inside `predict` — and
+  `run_prediction` wraps anything `predict` raises in `AssessmentFailed`, so a truncated export or
+  a channel with a hole in it reached the page as `FAILURE_INTERNAL`, *"the assessment was
+  interrupted"*. That is the app blaming itself for a file the reader could fix, and it is the
+  exact thing `validate.py`'s own docstring says it exists to prevent. Door and SHM both validate
+  these up front; rail was the odd one out. Both now land as `FAILURE_MISMATCH` with the sentence
+  naming the file. Cost: one extra parse per file — 132 ms each, so ~9 s on a 68-file batch,
+  0.13 s on a single upload. The header is still checked first and alone, at 5 ms, so a file from
+  another system never pays it.
+- **`train.py` casts the cached filenames back to `str`.** `np.load` returns `np.str_`, so
+  *"Cached files carry no label: [np.str_('Train9.csv')]"* — and the same fault printed differently
+  depending on whether the cache happened to be warm.
+
+**Why:** door, acv and the app had tests and rail had none, so nothing was watching the two places
+a wrong rail answer would be silent: the derived column layout, and the alignment between
+`FEATURE_NAMES` and the 228 values `extract` stacks. Both are now checked against the organisers'
+own header text and by amplifying one rail by 10x and asserting each named group of columns moves
+by the amount that implies. Both checks were confirmed to bite by flipping the side parity and by
+swapping the vibration/shock interleave; the parity flip is also caught a second time by
+`FEATURE_FINGERPRINT`, which is that guard doing its job.
+
+**Also:** `pytest==8.4.2` was missing from `.venv` despite being pinned in `requirements.txt`.
+Installed. If `python -m pytest` reports no module named pytest, that is why.
+
+**Affects:** Wayne — rail now returns a *mismatch* rather than an *internal* failure for a
+malformed rail CSV, so the page shows the expected-layout copy and recovery steps for those two
+cases where it previously showed the interrupted-assessment panel. No signature, schema, path or
+cached artefact changed. Jou — nobody.
+
+### 2026-09-19 — rail's verdict quotes a measured ratio, not the model's probability, and a batch shows every file
+
+**What:** `explain.py` only. The verdict detail is now the cross-side contrast in the band that
+implicates the rail — *"3.4x louder than the other rail at 300-500 mm ripple spacing. A rail to
+inspect, not a measure of how worn it is."* — where it used to read *">99% confident"*. The
+probability moved into the metrics panel as **"Model probability · how sure the model is, not a
+measured hit rate"**. New `strip` panel, one cell per uploaded file, leading the workings whenever
+more than one file is uploaded, so it is what sits beside the verdict in the **Answer** view.
+Internally `_subject` became `_read_batch`, which makes one pass and keeps the matrix, speeds, calls
+and probabilities; `_side_maxima` is deleted.
+**Why:** two things found by uploading the real 68 held-out files rather than one. The batch contains
+**eight fault calls and the verdict named one of them** — the other seven were visible only as rows in
+the Details table, which is the opposite of what `explain.py`'s own docstring claims to do for "a
+reader opening a batch of sixty-eight". And ">99% confident" on `Test66` is the booster's raw
+probability on 270 training files with 24 Side II examples, next to a measured Side II F1 of 0.790 —
+true as a statement about the model, read as a guarantee about the track.
+**Affects:** **nobody in code.** `predict(inputs) -> DataFrame` untouched, the 68-row CSV
+byte-identical, no app file edited — the `strip` renderer already existed for Door's cycles. Verified
+through `services.py` on all 68: panels `verdict · strip · line · metrics · bars`, 68 cells in two
+states, JSON-clean.
+
+One measurement worth keeping: **the margin now shown is read out of the classified feature row**
+(`vibration_contrast_max_<band>`) rather than recomputed from `features.quantities` beside it. The two
+are bit-identical — checked, `max abs diff 0.0` — so this costs nothing and removes a second source
+for one number.
+
+Two things to borrow, **Jou and Wayne**, both of which rail got wrong and you may already have right:
+
+1. **A verdict that quotes a classifier probability reads as a guarantee.** Door counts cycles
+   ("longest unbroken run: 4"), ACV quotes degrees of separation plus "a ranking, not a confirmed
+   leak", SHM quotes runs remaining. All three state a measured quantity in the subsystem's own units
+   and say what the answer is not. **Rail was the only one quoting a model score, and the convention
+   you three already had is the right one** — keep it.
+2. **Check what your `explain` shows when someone uploads the whole test set, not one file.** One
+   verdict for a 68-file batch hides everything except the worst row. ACV emits a verdict per file and
+   Door's strip covers every cycle; rail had neither and did not notice until the app was driven with
+   a real batch. This is the "verify through the real caller" lesson again, one level up: the right
+   caller with the wrong *input size* still passes.
+
+### 2026-09-19 — rail's constant-`Normal` fallback is gone; it now refuses like Door and SHM
+
+**What:** `load_checkpoint` raises `FileNotFoundError` instead of returning `None`, `predict` has no
+fallback branch, `explain` has no untrained panel, and `config.FALLBACK_LABEL` is deleted. New
+`scripts/train_rail.sh` / `.bat`, mirroring `train_shm.*` — rail was the only trained subsystem
+without a wrapper. The README's rail row, run block, method section and Status paragraph are updated.
+**Why:** the fallback was indistinguishable from a working model everywhere it mattered. The warning
+lived only in `predict.py`'s `main()`, which the submission path never calls, so on a machine with no
+checkpoint `./submit.sh` would have written 68 rows of `Normal`, `src/submission/validate.py` would
+have passed them, and a 0.308 submission would have packaged in silence. Door and SHM already refuse
+on exactly this argument (`src/shm/predict.py`'s docstring states it).
+**Affects:** **everyone who runs the submission.** Measured with the checkpoint moved aside: the app
+reports *unavailable* ("not ready to run … this is an app setup issue"), `generate` skips rail with
+the reason **and deletes the stale CSV**, and `explain` fails separately through the app's cache. With
+it restored, the 68 rows are byte-identical. Nothing in `common/` or `src/app/` touched by this entry.
+**The trade is real and was taken deliberately:** rail no longer contributes the banked 0.308 if the
+deadline arrives untrained — it contributes 0, exactly as Door and SHM already do. `./submit.sh` runs
+generate → validate → package and **does not train**, so training is a step the person building the
+submission has to take.
+
+**[[team-split]]'s "Bank a floor early" table still lists rail's dummy submission as constant
+`Normal` at ~0.308.** That is history, not current behaviour: the floor was banked in Phase 0 and
+then deliberately given up today. Read that table as what happened in hour one.
+
+### 2026-09-19 — rail now returns a `verdict` panel and has a `validate.py`; one line of app copy changed
+
+**What:** rail caught up to the two app capabilities that landed after its Phase 9. New
+`src/rail/validate.py` (header-only check, so the app classifies a wrong upload as *mismatch*
+rather than *internal*); `explain.py` returns a `verdict` panel first and leads its workings with
+the spectrum chart; `config.py` gained `SEVERITIES`, `RECOMMENDATIONS` and `RECOMMENDATION_SCOPE`;
+`dataset.py` gained `read_header` and made `describe_header_mismatch` and `SCHEMA_MISMATCH` public.
+**In `src/app/config.py` I changed one string:** `UPLOAD_REQUIREMENTS["rail"]`, which still read
+"when its model is available".
+**Why:** rail was the only subsystem with no verdict, so the app's default **Answer** view drew
+"This system does not summarise itself yet" over a working model — measured, not assumed. And
+`services.validate_inputs` runs *before* the try-block, so the same sentence raised from inside
+`predict` reaches the reader as "Assessment interrupted. This does not establish that your
+recordings are incorrect", which blames the user's files for belonging to another system.
+**Affects:** **Wayne** — that one line of `UPLOAD_REQUIREMENTS`, nothing else in `src/app/`.
+Nothing in `common/` touched, `predict(inputs) -> DataFrame` is unchanged, and the 68-row CSV is
+**byte-identical** after the change. Verified through `services.py`, not through rail's `main()`.
+
+Two things worth borrowing, **Jou and Wayne**:
+
+1. **Where you raise decides what the reader is told.** A `ValueError` from `src/<sub>/validate.py`
+   is a *mismatch* and the same `ValueError` from `predict` is an *internal* failure, because
+   `run_prediction` wraps everything after validation in `AssessmentFailed`. Rail had the right
+   sentence in the wrong place for a day. Check yours by uploading another subsystem's file to
+   yours and reading the headline.
+2. **A validator does not have to parse the file.** Rail's reads the header alone with
+   `nrows=0` — all 68 uploads validate in **1.0 s** against ~14 s to parse them, and the question
+   "was this recorded by this system" is settled by the column names either way.
+
 ### 2026-09-19 — rail's feature set is 228 columns, not 342; every rail artefact under `outputs/` is stale
 
 **What:** Phase 7 dropped the median aggregate. `src/rail/config.py` gained `AGGREGATES`, `features.py`

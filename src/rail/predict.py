@@ -27,20 +27,27 @@ CHECKPOINT_PATH = MODEL_DIRS[config.SUBSYSTEM_KEY] / config.CHECKPOINT_NAME
 DEFAULT_OUTPUT_PATH = PREDICTION_PATHS[config.SUBSYSTEM_KEY]
 
 
-def load_checkpoint() -> dict | None:
-    """The fitted classifier, or None when nothing has been trained yet.
+def load_checkpoint() -> dict:
+    """The fitted classifier. A missing one is a setup error, not a default.
 
-    A missing checkpoint is not an error here, unlike SHM's: rail's fallback is
-    the majority class, which is a real macro F1 of 0.33 rather than a fabricated
-    number, and it keeps the app answering during a demo. It is still a worse
-    answer than the model's, so every caller says out loud when it fires.
+    Rail used to answer constant ``Normal`` here, on the argument that the
+    majority class is a real 0.308 macro F1 rather than a fabricated number and
+    keeps the app answering during a demo. It is still all of that, and it is
+    also indistinguishable from a working model everywhere it matters: the app
+    renders 68 rows, ``src/submission/generate.py`` writes them, and
+    ``src/submission/validate.py`` passes them, none of them able to tell that
+    no model produced any of it. The warning existed only in this module's
+    ``main()``, which the submission path never calls. Door and SHM both refuse
+    for the same reason (``src/shm/predict.py``), so rail refuses too.
 
-    A checkpoint fitted on different columns is a different matter: predicting
-    through it would silently score whatever the mismatched columns happen to
-    mean, so that raises.
+    A checkpoint fitted on different columns raises on the same argument:
+    predicting through it would silently score whatever the mismatched columns
+    happen to mean.
     """
     if not CHECKPOINT_PATH.exists():
-        return None
+        raise FileNotFoundError(
+            f"No rail checkpoint at {CHECKPOINT_PATH}. Fit one with: python -m src.rail.train"
+        )
 
     with CHECKPOINT_PATH.open("rb") as handle:
         checkpoint = pickle.load(handle)
@@ -74,11 +81,7 @@ def predict(inputs: list[Path], checkpoint: dict | None = None) -> pd.DataFrame:
         raise ValueError("No rail input files to predict on.")
 
     checkpoint = load_checkpoint() if checkpoint is None else checkpoint
-    predicted = (
-        config.FALLBACK_LABEL
-        if checkpoint is None
-        else checkpoint["estimator"].predict(feature_matrix(inputs))
-    )
+    predicted = checkpoint["estimator"].predict(feature_matrix(inputs))
     return pd.DataFrame({FILE_ID: [path.name for path in inputs], PREDICTION: predicted})
 
 
@@ -111,7 +114,6 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        trained = CHECKPOINT_PATH.exists()
         frame = predict(list_data_files(args.input))
         output_path = write_predictions(frame, args.output)
     # A checkpoint written by another version of this package fails in its own
@@ -123,11 +125,6 @@ def main() -> None:
     counts = frame[PREDICTION].value_counts()
     print(f"Wrote {len(frame)} rail predictions to {output_path}")
     print("  " + "  ".join(f"{label} {counts.get(label, 0)}" for label in config.LABELS))
-    if not trained:
-        print(
-            f"  WARNING: no {CHECKPOINT_PATH.name}, so every row is the fallback "
-            f"{config.FALLBACK_LABEL}. Fit one with: python -m src.rail.train"
-        )
 
 
 if __name__ == "__main__":

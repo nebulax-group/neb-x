@@ -436,6 +436,7 @@ Nothing outside this list gets created.
 | `src/rail/train.py` | CV, fit, write checkpoint and feature cache | writes `outputs/` | ✓ |
 | `src/rail/predict.py` | `predict(inputs: list[Path]) -> DataFrame` | writes `outputs/` | ✓ |
 | `src/rail/explain.py` | the same run as panels the app draws. No IO beyond reading its inputs. | no | ✓ |
+| `src/rail/validate.py` | is this upload a rail recording? The header, and nothing else. | reads only | ✓ |
 
 `common/config.py` already owns the paths (`TRAIN_PATHS`, `TEST_PATHS`, `LABEL_PATHS`,
 `MODEL_DIRS`, `PREDICTION_PATHS`) and `RANDOM_SEED`; `common/io.py` already owns `read_table` and
@@ -469,8 +470,16 @@ Status as of 2026-09-19. **All ten phases are done. Rail is finished.**
 renders it, and the phase list is closed. One thing to be precise about: **the app is Wayne's and is
 not on this branch** — `src/app/` here holds a `.gitkeep`. "Through the app" throughout this file means
 `src/app/services.py` read out of `origin/wayne` and driven against rail's real modules, which is the
-caller that matters; it is not something `jermaine-rail` can run on its own. What is *not* done and is not rail's to do:
-`src/submission/` (shared end-work — `validate.py` and the flat zip) and the demo video.
+caller that matters; it is not something `jermaine-rail` can run on its own.
+
+*Superseded 2026-09-19: rail is merged (PR #5), so the app, `src/door/`, `src/acv/` and
+`src/submission/` are all on this branch and the app runs here. Two capabilities had appeared in it
+since Phase 9 and rail was the only subsystem not using either — a `verdict` panel, without which the
+default **Answer** view drew "This system does not summarise itself yet" over a working model, and
+`src/<sub>/validate.py`, without which a wrong upload was reported as an app failure rather than as a
+file that belongs to another system. Both are now supplied; see [[jermaine]]. `python -m
+src.submission.validate` reads `rail ok`, and the 68-row CSV did not change. Still not rail's:
+`predictions.zip` (one person zips once all four validate) and the demo video.*
 
 **Do not reopen the feature search without reading Phase 7 first.** All five blocks it tested are
 refuted with the measurements to show it, and the shuffled control under **The noise floor** says what
@@ -506,8 +515,18 @@ was verified string-for-string against all 129 shipped header names. Phase 1's h
 therefore already proven, not merely specified.
 
 `predict()` lists the test folder with `list_data_files`, echoes each `path.name` verbatim as
-`file_id`, and predicts constant `Normal`. That branch is **not throwaway** — it stays permanently
-as the "no checkpoint found" path, so the app cannot crash during the demo.
+`file_id`, and predicts constant `Normal`. ~~That branch is **not throwaway** — it stays permanently
+as the "no checkpoint found" path, so the app cannot crash during the demo.~~
+
+*Reversed 2026-09-19, and the reasoning above was wrong in a way worth keeping visible. The fallback
+was indistinguishable from a working model in every caller that mattered: the app drew 68 rows,
+`src/submission/generate.py` wrote them, `src/submission/validate.py` passed them, and the only
+warning lived in `predict.py`'s `main()`, which the submission path never calls. So the branch that
+existed to protect the demo would instead have packaged a 0.308 submission in silence. Rail now
+raises `FileNotFoundError` like Door and SHM, which costs the banked floor — untrained, rail scores 0
+rather than 0.308 — and buys the guarantee that nobody can submit a number no model produced. The
+floor's real value was always Phase 0's other half: a schema-correct CSV with the right `file_id`
+spelling, which cannot be un-learned. See [[jermaine]].*
 
 **Verified:** `outputs/predictions/rail_predictions.csv`, 68 rows, columns `file_id,prediction`
 matching `reference/submission_format/`, names `Test1.csv` … `Test68.csv` exactly as shipped and
@@ -1024,9 +1043,10 @@ Three decisions the spec left open, and one thing it got wrong:
 - **`predict` takes `list[Path]`, not a folder path.** The Phase 0 signature was `str | Path` and
   fed `list_data_files`; the app passes a list of staged upload paths, which would have raised on
   the first click. [[team-split]] documented `list[Path]` all along — this was rail not matching it.
-- **Rail keeps its constant-`Normal` fallback where SHM deliberately refuses one.** A label from a
-  three-way vocabulary is a real 0.31 baseline; SHM's would be a fabricated number. Both `main()`
-  and the first explanation panel say out loud when it fires, so it cannot pass for a result.
+- ~~**Rail keeps its constant-`Normal` fallback where SHM deliberately refuses one.**~~ *Reversed
+  2026-09-19: "both `main()` and the first explanation panel say out loud when it fires" was the
+  load-bearing claim and it was false of the path that matters — `src/submission/generate.py` calls
+  `predict` directly and prints neither. Rail now refuses too; see **Phase 0**.*
 - **Two panel captions claimed more than the data supports and were rewritten.** They said
   concentrated per-car energy indicates a defect and that healthy rails track the centre line;
   `Test11` is called Normal with 49% of its energy in one car and a −1.35 log-ratio excursion.
@@ -1037,6 +1057,25 @@ ratio against ripple wavelength drawn whole, rather than in the seven bands the 
 into; and each car's share of the implicated rail's energy in the band that most implicates it.
 Everything comes from `features.quantities`, the same per-box function the feature vector is built
 from, so the explanation cannot drift from the prediction it explains.
+
+*Revised 2026-09-19 to five panels, after the app grew a `verdict` capability and rail was driven
+with the real 68-file batch rather than one file ([[jermaine]]):*
+
+- *A **verdict** card — the call, its severity (`Normal` clear, either rail caution, **never**
+  danger: the model names a rail, it does not measure wear), and next steps. **Its detail line is the
+  measured cross-side ratio, not the model's probability** — "3.4x louder than the other rail at
+  300-500 mm ripple spacing". Door, ACV and SHM all quote a measured quantity there and rail was the
+  outlier; a booster probability of 0.999 beside a measured Side II F1 of 0.790 reads as a guarantee
+  it is not.*
+- *A **strip** of one cell per uploaded file whenever more than one is uploaded. The 68-file batch
+  holds **eight fault calls** and the verdict describes one; the other seven were reachable only as
+  rows in the table. It reuses Door's own renderer — no app file was touched.*
+- *The probability keeps its place in the metrics panel, labelled "how sure the model is, not a
+  measured hit rate".*
+
+*Also worth recording for the write-up: the margin shown is read out of the classified feature row
+(`vibration_contrast_max_<band>`), not recomputed alongside it — bit-identical, verified — so the
+invariant above now holds through the feature vector itself rather than through a parallel path.*
 
 ## Negative results
 
@@ -1166,7 +1205,9 @@ Dropping the 171 shock columns: +0.006 full, **−0.031 fast**, Side I −0.065,
   lives where the slow Normal files are is the speed confound wearing a feature's name.
 - Nothing in Phases 0–9 touches `common/`. Phase 7 changed the shipped feature set, which invalidates
   the cached matrix and the checkpoint under `outputs/` — logged in [[jermaine]] for that reason alone.
-- The floor is banked at 0.31 in Phase 0 and the fitted model measures **0.750 ± 0.114 per fold, 0.757
-  pooled**, submitted through the app. **Every phase is closed; rail is done.**
+- The fitted model measures **0.750 ± 0.114 per fold, 0.757 pooled**, submitted through the app.
+  **Every phase is closed; rail is done.** The 0.31 floor banked in Phase 0 was given up on
+  2026-09-19: rail refuses rather than falling back, so **an untrained rail now scores 0, not 0.308**
+  — train before building the submission, because `./submit.sh` does not.
 
 See also: [[team-split]], [[project-structure]], [[problem-statment]], [[jermaine]].
