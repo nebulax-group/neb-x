@@ -14,7 +14,7 @@ independent subsystems, each worth 25% of the Overall Score.
 |---|---|---|---|
 | Door | Find each door open/close cycle in a continuous stream and classify it `Normal` vs `Abnormal resistance` | IoU-weighted F1 | **implemented** |
 | ACV | Rank the cars in a train from most- to least-likely to have a refrigerant leak | Linear rank-decay | **implemented** |
-| Rail Corrugation | Classify `Normal` / `Side I` / `Side II` from axle-box vibration | Macro F1 | not started |
+| Rail Corrugation | Classify `Normal` / `Side I` / `Side II` from axle-box vibration | Macro F1 | **implemented** |
 | SHM | Estimate cumulative fatigue damage from dynamic stress data | `max(0, 1 − MAPE)` | not started |
 
 Each subsystem's authoritative definition — schema, labels, exact scoring formula with a worked
@@ -50,9 +50,9 @@ The datasets are not in git (~6 GB). Clone the organisers' repo and copy `PS3/02
 
 Every command below uses the Windows interpreter path; substitute `.venv/bin/python` elsewhere.
 
-## Running the two implemented subsystems
+## Running the subsystems
 
-**Tests** — 48 of them, covering both subsystems end to end:
+**Tests** — 48 of them, covering Door and ACV end to end:
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/ -v
@@ -85,6 +85,26 @@ f.to_csv(config.PREDICTION_PATHS['acv'], index=False); print(f.to_string(index=F
 # -> acv_test_case.xlsx,01|03|07|04|08|06|02|05
 ```
 
+**Rail Corrugation** — train, then predict. Both steps have wrapper scripts, which create or
+refresh `.venv` first:
+
+```bash
+./scripts/train_rail.sh            # Windows: scripts\train_rail.bat
+# -> 270 files x 228 features (Train115.csv, Train187.csv dropped as duplicates)
+# -> 10x5 repeated stratified CV: macro F1 0.750 +/- 0.114 per fold, 0.757 pooled
+# -> checkpoint written to outputs/models/rail/classifier.pkl
+# Takes ~390 s the first time. Pass --refresh to re-extract the feature cache,
+# which is mandatory after editing src/rail/features.py.
+
+.venv/Scripts/python.exe -m src.rail.predict
+# -> Wrote 68 rail predictions to outputs/predictions/rail_predictions.csv
+# ->   Normal 60  Side I 5  Side II 3
+```
+
+Rail refuses to predict without a checkpoint, as Door and SHM do — a subsystem that quietly
+answered with its majority class would write a schema-valid CSV that no model produced, and
+`./submit.sh` neither trains nor could tell the difference.
+
 **ACV confirmation report** — read this before trusting the ranking:
 
 ```bash
@@ -92,7 +112,7 @@ f.to_csv(config.PREDICTION_PATHS['acv'], index=False); print(f.to_string(index=F
 print(report.confirmation(dataset.test_case_paths()[0]).to_string(index=False))"
 ```
 
-## How the two implemented subsystems work
+## How the subsystems work
 
 **Door.** The controller only samples while a door is moving, so cycle boundaries are silences in
 the stream: inside a cycle rows are 20 ms apart, between cycles the recorder goes quiet for 10 s or
@@ -110,8 +130,23 @@ file, rank descending. A healthy car sits at or below its target; a leaking car 
 target because it cannot keep up. That single signal ranks the true faulty car first in all five
 cases sharing the held-out file's schema.
 
+**Rail Corrugation.** One file is one second of an 8-car train crossing a section of track, 64 axle
+boxes on each rail sampled at 10 kHz. Both rails are crossed by the same train at the same speed in
+the same second, so the **contrast between the two sides** cancels the confounders the info kit
+lists — speed, ballast noise, track elasticity — and what is left is genuinely asymmetric. Energy is
+binned by ripple **wavelength** rather than by frequency, because a wheel crossing corrugation rings
+at `speed / wavelength` and speed varies 10× across these files; that alone is worth +0.06 macro F1.
+Each side's 32 boxes are aggregated by max and p90, never by median: only some boxes ever cross the
+corrugated stretch, and a median is built to discard exactly those.
+
+The honest figure is **0.750 ± 0.114 per fold, 0.757 pooled**, against 0.308 for predicting `Normal`
+everywhere. No fault file in training is slower than 9.70 m/s while 133 of 234 `Normal` files are, so
+"slow implies Normal" is available for free — the score on the 138 files fast enough to make that
+shortcut unavailable is **0.770**, above the headline rather than below it. Quote both.
+
 Full reasoning, the measurements behind every choice, and the ideas that were tried and rejected:
-[docs/superpowers/specs/2026-09-18-door-acv-design.md](docs/superpowers/specs/2026-09-18-door-acv-design.md).
+[docs/superpowers/specs/2026-09-18-door-acv-design.md](docs/superpowers/specs/2026-09-18-door-acv-design.md)
+for Door and ACV, [.claude/memory/rail-plan.md](.claude/memory/rail-plan.md) for rail.
 
 ## Layout
 
@@ -161,6 +196,11 @@ Learned the expensive way; all three are guarded by tests.
 
 ## Status
 
-Door and ACV are implemented, tested, and have valid prediction files in `outputs/predictions/`.
-Rail and SHM are not started. The app is not started — and it is a **compulsory** deliverable that
-the submitted predictions must be generated through, so it is not the last thing to build.
+Door, ACV and Rail Corrugation are implemented and have valid prediction files in
+`outputs/predictions/`; Door and ACV are the two covered by tests. Rail runs through the app, both
+as a prediction and as the panels explaining it.
+
+Checkpoints are not in git — `outputs/` is gitignored and entirely regenerable — so a fresh clone
+has no trained model for any subsystem that needs one. Door, SHM and Rail all refuse to predict
+until trained, and say which command to run. `./submit.sh` regenerates and validates the prediction
+CSVs but does **not** train, so train first on whatever machine builds the submission.
