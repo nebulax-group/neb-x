@@ -53,8 +53,8 @@ Every command below uses the Windows interpreter path; substitute `.venv/bin/pyt
 ## Maintenance review app
 
 Start `scripts\app.bat` on Windows or `./scripts/app.sh` on macOS/Linux.
-Choose a system and upload its recordings. Door, ACV and SHM are available when their
-dependencies and required checkpoints are installed; Rail Corrugation remains unavailable.
+Choose a system and upload its recordings. Door, ACV, Rail Corrugation and SHM are available when their
+dependencies and required checkpoints are installed.
 
 Each system keeps its uploads, latest assessment, Answer/Details view and selected cycle
 while you switch systems in the same browser session. Replacing or removing files replaces
@@ -77,17 +77,7 @@ Suggested recipients are roles, not verified contacts; nothing is sent automatic
 SHM values describe damage contributed by individual recordings, not known remaining asset life.
 Hackathon prediction CSV generation remains available through the submission scripts.
 
-## Running the subsystems
-## Door and ACV command-line examples
-
-**Tests** — 48 of them, covering Door and ACV end to end:
-
-```bash
-.venv/Scripts/python.exe -m pytest tests/ -v
-```
-
-The ACV tests read every case workbook through openpyxl and take about four minutes. That is
-expected, not a hang.
+## Running the subsystems (Command-line examples)
 
 **Door** — train, then predict:
 
@@ -113,6 +103,13 @@ f.to_csv(config.PREDICTION_PATHS['acv'], index=False); print(f.to_string(index=F
 # -> acv_test_case.xlsx,01|03|07|04|08|06|02|05
 ```
 
+**ACV confirmation report** — read this before trusting the ranking:
+
+```bash
+.venv/Scripts/python.exe -c "from src.acv import dataset, report; \
+print(report.confirmation(dataset.test_case_paths()[0]).to_string(index=False))"
+```
+
 **Rail Corrugation** — train, then predict. Both steps have wrapper scripts, which create or
 refresh `.venv` first:
 
@@ -133,12 +130,6 @@ Rail refuses to predict without a checkpoint, as Door and SHM do — a subsystem
 answered with its majority class would write a schema-valid CSV that no model produced, and
 `./submit.sh` neither trains nor could tell the difference.
 
-**ACV confirmation report** — read this before trusting the ranking:
-
-```bash
-.venv/Scripts/python.exe -c "from src.acv import dataset, report; \
-print(report.confirmation(dataset.test_case_paths()[0]).to_string(index=False))"
-```
 
 ## How the subsystems work
 
