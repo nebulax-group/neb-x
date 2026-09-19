@@ -103,6 +103,12 @@ CHANNEL_NAMES = ("vibration", "shock")  # separate feature blocks; never pooled
 # has to be extreme-value; a robust one discards exactly those boxes.
 AGGREGATE_PERCENTILE = 90
 
+# Which of them a side is summarised by. The median was measured and dropped: it
+# is a tie on macro F1 (+0.007 on 100 fresh folds, the interval straddling zero)
+# with Side I consistently but unprovably better, so it goes as a simplification
+# rather than as a gain -- 228 features against 342 for the same score.
+AGGREGATES = ("max", f"p{AGGREGATE_PERCENTILE}")
+
 # Keeps log10 finite for a dead channel, far below the quantisation step.
 NUMERICAL_FLOOR = 1e-12
 
@@ -118,8 +124,11 @@ CHECKPOINT_NAME = "classifier.pkl"
 # every check and surfaces only in the submitted CSV.
 #
 # SIDE_BOXES is in here because it is the worst of them: flipping the parity rule
-# swaps the two rails while leaving all 342 column names spelled exactly the same,
+# swaps the two rails while leaving every column name spelled exactly the same,
 # and telling Side I from Side II is the entire task.
+#
+# AGGREGATES is deliberately NOT in here: it is spelled out in every column name,
+# so dropping one is a mismatch the names catch on their own.
 FEATURE_FINGERPRINT = "|".join(
     str(value)
     for value in (
@@ -142,6 +151,8 @@ MODEL_MAX_ITER = 300
 MODEL_CLASS_WEIGHT = "balanced"
 
 # The linear comparison, not a candidate to ship. Penalised hard because it sees
-# 342 features against 272 files; C chosen by CV, unlike the booster's defaults.
+# 228 features against 270 files; C chosen by CV, unlike the booster's defaults.
+# The figure it was measured at was 342 against 272 -- see rail-plan.md's model
+# comparison, which is quoted from that run and has not been re-measured since.
 LINEAR_C = 0.1
 LINEAR_MAX_ITER = 1000

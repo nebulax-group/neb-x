@@ -17,12 +17,16 @@ from src.rail.speed import estimate_speed
 
 VIBRATION, SHOCK = config.CHANNEL_NAMES
 
-_AGGREGATES = (
-    ("max", np.max),
-    (f"p{config.AGGREGATE_PERCENTILE}", partial(np.percentile, q=config.AGGREGATE_PERCENTILE)),
-    ("median", np.median),
-)
-_AGGREGATE_NAMES = tuple(name for name, _ in _AGGREGATES)
+# Every aggregate a side could be summarised by; config.AGGREGATES picks which
+# are built. The median stays catalogued because it is what the per-box context
+# would be measured with if that question is ever reopened -- see its entry in
+# config for why it is not currently one of them.
+_AGGREGATE_FUNCTIONS = {
+    "max": np.max,
+    f"p{config.AGGREGATE_PERCENTILE}": partial(np.percentile, q=config.AGGREGATE_PERCENTILE),
+    "median": np.median,
+}
+_AGGREGATES = tuple(_AGGREGATE_FUNCTIONS[name] for name in config.AGGREGATES)
 
 _SIDE_NAMES = tuple(label.lower().replace(" ", "_") for label in config.SIDE_LABELS)
 _SIDE_INDEX = tuple(np.fromiter(boxes, dtype=int) for boxes in config.SIDE_BOXES)
@@ -51,12 +55,12 @@ def _channel_feature_names(channel: str) -> tuple[str, ...]:
     per_side = tuple(
         f"{channel}_{side}_{aggregate}_{quantity}"
         for side in _SIDE_NAMES
-        for aggregate in _AGGREGATE_NAMES
+        for aggregate in config.AGGREGATES
         for quantity in QUANTITY_NAMES
     )
     contrast = tuple(
         f"{channel}_contrast_{aggregate}_{quantity}"
-        for aggregate in _AGGREGATE_NAMES
+        for aggregate in config.AGGREGATES
         for quantity in QUANTITY_NAMES
     )
     return per_side + contrast
@@ -149,7 +153,7 @@ def extract(recording: Recording) -> np.ndarray:
     for _, signals in channels:
         per_box = quantities(signals, speed_ms)
         per_side = [
-            [function(per_box[:, boxes], axis=1) for _, function in _AGGREGATES]
+            [function(per_box[:, boxes], axis=1) for function in _AGGREGATES]
             for boxes in _SIDE_INDEX
         ]
         for aggregates in per_side:
