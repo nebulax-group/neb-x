@@ -2,7 +2,14 @@
 
 The ten phases that take `src/rail/` from empty to a validated `rail_predictions.csv`, the design
 decisions behind them, and the measurements those decisions rest on. Jermaine owns this package
-end to end ([[team-split]]). Written 2026-09-18, revised the same day against the data.
+end to end ([[team-split]]). Written 2026-09-18, revised the same day against the data, and closed
+2026-09-19 when Phase 7 finished.
+
+**All ten phases are done.** The shipped model is 228 features at **0.750 ± 0.114 per fold / 0.757
+pooled**, 0.770 / 0.777 on the files fast enough that "slow ⇒ Normal" is unavailable. Read
+**Phase 7** before reopening any feature question: all five of its candidate blocks are refuted with
+the measurements to show it, and the shuffled control under **The noise floor** says what a sixth has
+to beat.
 
 **Why:** the first draft of this plan was reasoned from `docs/rail/info_kit.md` alone. Probing the
 data refuted three of its load-bearing claims — including one instruction that was exactly
@@ -22,8 +29,16 @@ graded on macro F1. 272 train files, 68 test files, 234 / 14 / 24.
 The labels are mutually exclusive by construction (`docs/rail/info_kit.md` §2.2): `Side I` means
 corrugation on rail I *while rail II is normal*. Both sides are never faulty in the same file.
 
-Predicting `Normal` everywhere gives ~86% accuracy and **0.33 macro F1**. The 14 Side I files carry
+Predicting `Normal` everywhere gives ~86% accuracy and **0.308 macro F1**. The 14 Side I files carry
 a third of the score between them, roughly 2.4% of the rail metric each.
+
+*Corrected 2026-09-19: this figure was written as 0.33 here and in six other places, from
+`(1.0 + 0 + 0) / 3`. **`Normal`'s own F1 is 0.924, not 1.0** — predicting it everywhere buys perfect
+recall at 232/270 = 0.859 precision — so the floor is `0.924 / 3 = 0.308`, measured with
+`sklearn.f1_score` on the real labels. In general the floor is `2p/(p+1)/3` for a `Normal` share of p,
+so **0.333 is an unreachable limit**: it needs p = 1, which would mean no fault files exist at all. On
+the held-out set the exact value depends on its own balance, which we cannot know — at a similar ~86%
+it is ~0.31. The correction makes every improvement in this file slightly **larger** than claimed.*
 
 A doc inconsistency worth knowing: §4 of the info kit says "~9 Side I examples against ~190
 Normal" while §2.2 and `Train_Labels.csv` both say 14 / 234. The label file is ground truth; the §4
@@ -140,17 +155,67 @@ side of a Side I file** and **16.2 on the faulty side of a Side II file**. At ~1
 covers 13 m in one second, so the eight cars sit over different track and only some boxes ever
 cross the corrugated section. The median is designed to discard exactly that.
 
-**Max and p90 are the signal; median is context.**
+**Max and p90 are the signal; median is context.** Phase 7 took the next step and measured whether
+that context earns its place: it does not. Dropping all 114 median columns is a tie on macro F1 with
+Side I consistently better, so the shipped set is max and p90 only — 228 features. The sentence above
+is now literally the feature set rather than a description of its emphasis.
+
+**But the contrast alone is not enough, and that corrects the paragraph above it.** Scored on the 114
+cross-side contrast columns with every per-side absolute removed, the model collapses to **0.499
+macro F1, Side I 0.114** — it loses 48 of 50 folds and all 10 repeats. So "the contrast cancels every
+confounder and is therefore the signal" is half the story: the contrast is where the *discrimination*
+lives, but the model needs each side's absolute level alongside it to know what a given ratio means at
+that excitation. A −0.3 dex asymmetry on a near-silent rail and the same ratio at line speed are not
+the same evidence, and only the absolutes distinguish them. Measured 2026-09-19; see **Negative
+results**.
 
 ## Measured baseline
 
-Three numbers. **The Phase 8 figure is the one to quote.** The two below it are kept because the
-per-class table, the negative results and the noise-floor argument are all stated against them.
+Four numbers now. **The Phase 7 figure is the one to quote.** The three below it are kept because
+the per-class table, every negative result and the noise-floor argument are all stated against them.
 
-### The shipped figure — 0.740 (Phases 8–9)
+### The shipped figure — 0.750 (Phase 7)
 
-Everything as shipped: `features.py`'s 342 features, `model.build_classifier()`, the two duplicates
-dropped, 10×5 repeated stratified CV, seed 42.
+Everything as shipped after Phase 7 dropped the median aggregate: `features.py`'s **228** features,
+`model.build_classifier()`, the two duplicates dropped, 10×5 repeated stratified CV, seed 42.
+Reproduced three times — `confirm.py` against the banked folds, `python -m src.rail.train --refresh`,
+and the baseline re-capture — identical to three decimals in every column each time.
+
+| Subset | macro F1, per fold | pooled | Normal | Side I | Side II |
+|---|---|---|---|---|---|
+| **270 files, duplicates dropped** | **0.750 ± 0.114** | 0.757 | 0.966 | **0.515** | 0.790 |
+| files ≥ 9.70 m/s (n=138) | 0.770 ± 0.103 | 0.777 | 0.937 | 0.560 | 0.835 |
+
+Mean confusion per repeat, 270 files (rows true, cols predicted):
+
+```
+Normal     226.1     1.7     4.2
+Side I       6.8     6.0     1.2
+Side II      3.3     1.5    19.2
+```
+
+**Read this as a tie with a smaller model, not as a gain.** Paired against the 342-feature set on
+identical folds it is **+0.0095** at the shipped settings and seed 42, and **+0.0072 on 100 folds at
+seed 7**, both intervals straddling zero — under the ±0.03 bar this plan sets for itself. What is solid is the direction: 12
+paired readings across three runs and two subsets, every one of them positive, and the worst reading
+is a tie. It ships because 228 features that tie 342 are the better model, not because the score
+moved. See **Phase 7** for the whole measurement.
+
+**The submitted CSV did not change by a single row.** All 68 held-out calls are identical to the
+342-feature model's, 60 Normal / 5 Side I / 3 Side II, file for file — so this carried no risk to the
+submission, and the CV difference is not visible in the artefact that gets graded. Worth stating
+plainly rather than implying the held-out score moved.
+
+**Two number collisions to watch when quoting from this file into the write-up.** "0.750 ± 0.114" names
+*both* the shipped 228-feature figure above and the 342-feature figure measured before Phase 9's
+empty-band fix — they are separable only by the pooled column, 0.757 against 0.761. And "114" is both
+the 342-era contrast count and the number of median columns Phase 7 removed. Neither is an error; both
+are easy to quote as one.
+
+### The 342-feature figure — 0.740 (Phases 8–9), superseded
+
+The same harness before Phase 7 removed the median aggregate. Every comparison in **Model
+comparison**, **Negative results** and **The noise floor** is differenced against these folds.
 
 | Subset | macro F1, per fold | pooled | Normal | Side I | Side II |
 |---|---|---|---|---|---|
@@ -170,9 +235,10 @@ which is the proof that what those zeros encoded was not rail asymmetry but "thi
 marker only Normal files could carry. We paid 0.010 of measured score to stop reading a confound as
 a physical measurement. Worth saying plainly in the write-up.
 
-**The fast-only figure is now 0.014 *above* the headline**, not merely within noise of it. The
-subset drops 132 Normal files, most of the near-silent stationary cluster among them, and the model
-does better without them. Nothing about this model is carried by the slow files.
+**The fast-only figure is *above* the headline**, not merely within noise of it — by 0.014 here and
+by 0.020 on the shipped 228-feature set. The subset drops 132 Normal files, most of the near-silent
+stationary cluster among them, and the model does better without them. Nothing about this model is
+carried by the slow files.
 
 **Two different quantities, and the gap is not noise.** "Per fold" is the mean of 50 fold-level
 macro F1 scores; "pooled" scores each repeat's complete out-of-fold set once and averages the ten.
@@ -183,7 +249,8 @@ organisers compute**, and here it reads 0.011 *higher* on the deduped set. Repor
 figure for continuity with everything on record — every comparison in this plan is differenced
 against fold scores — and the pooled figure as the expected held-out number.
 
-Mean confusion per repeat, 270 files (rows true, cols predicted):
+Mean confusion per repeat, 270 files, 342 features (rows true, cols predicted). Against the shipped
+set above, Side I goes from 5.6 correct to 6.0 and from 7.5 called Normal to 6.8:
 
 ```
 Normal     226.2     2.1     3.7
@@ -292,6 +359,27 @@ comparison is paired, fold difficulty differences out, and the detectable effect
 - A Phase 7 candidate worth **+0.03 paired** is therefore measurable, where the old rule would have
   discarded it. This makes Phase 7 more tractable, not less.
 
+**Added 2026-09-19, and it is the single most useful number Phase 7 produced: widening the matrix
+buys score on its own.** The same 36 candidate columns, with their **rows shuffled** so they describe
+the wrong files, scored **+0.0116 macro F1 and +0.0268 Side I** against the shipped set on the full
+270. On the fast subset the same control read −0.0107 / −0.0077.
+
+**Be precise about what it beat**, because the loose version of this sentence is wrong: +0.0116 beat
+**six of the eight specs measured that day**, losing only to the envelope block at +0.0199 and the
+confounded fine-wavelength block at +0.0250. What it beat outright is **every block that survived its
+own confound check** — the fixed fine-wavelength block landed at +0.0045 and the fixed harmonic block
+at +0.0054, both below the noise columns.
+
+So 36 columns of *nothing* move macro F1 by ±0.01 and Side I by ±0.03 depending on the subset, at 270
+files with 14 in the minority class. Three consequences:
+
+- **Every candidate that adds columns must be priced against its own shuffled control**, not against
+  zero. A block that gains +0.02 while its shuffle gains +0.012 has demonstrated +0.008.
+- It explains why so many candidates read as small wins and none replicated: the booster's fold-level
+  variance responds to matrix width, and with 14 Side I files a single reassignment is worth 0.07.
+- **Narrowing is the cleaner lever.** A change that removes columns cannot borrow this effect — it
+  runs against it — which is most of why the median drop is believable where the additions were not.
+
 ## The speed confound
 
 Given the table above, a model *could* score respectably by learning "slow ⇒ Normal". Measurement
@@ -299,8 +387,18 @@ says this one does not — but one feature was quietly doing it, and had to be f
 
 - Adding speed as an explicit feature changes nothing: 0.682 → 0.680 on the probe.
 - Restricted to the files at or above 9.70 m/s, where the shortcut is unavailable by construction,
-  it reaches 0.660 on the probe, 0.765 on the Phase 4 feature set, and **0.754 against the shipped
-  model's own 0.740**.
+  it reaches 0.660 on the probe, 0.765 on the Phase 4 feature set, 0.754 against the 342-feature
+  model's 0.740, and **0.770 against the shipped model's own 0.750**.
+
+**Phase 7 is the strongest evidence in this file that the subset check is worth its runtime.** Of five
+candidate feature blocks, **two gained on the full 270 and reversed on the 138 fast files** — envelope
+spectrum +0.020 → −0.005 and harmonic structure +0.010 → −0.006. Both of those full-set gains were
+gains on slow Normal files. **A candidate that only helps where the slow files are has not helped.**
+
+A **third** block had a speed marker inside it without showing that signature: the first
+fine-wavelength version read +0.025 full and +0.033 fast, so the subset check passed it. What caught
+that one was reading its columns directly — see Phase 7's point 2. **The subset check is necessary and
+not sufficient**, which is the reason the per-column confound check exists alongside it.
 
 **The fast-only figure is now above the headline, not merely within noise of it**, and Side I and
 Side II both score higher there than on the full set. The subset removes 132 Normal files including
@@ -308,8 +406,10 @@ the near-silent stationary cluster, which was the part of Normal that came free.
 carrying the model; it was diluting it.
 
 **One feature was encoding speed, and removing it cost 0.010.** The empty-wavelength-band bug under
-Phase 3 gave three slow files a contrast of exactly 0.0 — a value no fault file could produce, since
-every fault file is fast enough to resolve the band. That is the confound reappearing *inside* a
+Phase 3 gave three slow files a *band-energy* contrast of exactly 0.0 — a value no fault file could
+produce, since every fault file is fast enough to resolve the band. (Scope that to band energies: the
+`peak_hz` contrasts are exactly zero on 251 of 272 files for an unrelated and legitimate reason, and
+the correction is under **Phase 3**.) That is the confound reappearing *inside* a
 feature that claims to measure rail asymmetry. It is fixed, the fast-only figure did not move by a
 thousandth in any column, and the full-set figure dropped by exactly the amount the confound was
 worth. **That pair of facts is the single best piece of evidence we have that the rest of the score
@@ -350,31 +450,42 @@ per-subsystem view files any more.
 
 ## The phases
 
-Status as of 2026-09-18. **Phase 7 is the only one left, and it is upside, not a dependency.**
+Status as of 2026-09-19. **All ten phases are done. Rail is finished.**
 
 | | Phase | State |
 |---|---|---|
-| 0 | Bank the floor | **done** — `config.py`, `predict.py`, 0.33 banked |
+| 0 | Bank the floor | **done** — `config.py`, `predict.py`, 0.31 banked |
 | 1 | Load one file correctly | **done** — `dataset.py` |
 | 2 | Speed | **done** — `speed.py`, table reproduced exactly |
-| 3 | Features | **done** — `features.py`, 342 features |
-| 4 | Extract all, cache once | **done** — `train.py`, 790 KB cache, 0.003 s reload |
+| 3 | Features | **done** — `features.py`, 342 features, now 228 |
+| 4 | Extract all, cache once | **done** — `train.py`, 545 kB cache, 0.003 s reload |
 | 5 | Leakage check | **done** — split is sound, 2 duplicates to drop at fit time |
 | 6 | Model | **done** — `model.py`, 0.758 at 10×5; estimator choice is a tie |
-| 8 | Train and tune | **done** — 0.740 ± 0.114 honest, checkpoint on disk |
+| 8 | Train and tune | **done** — 0.740 ± 0.114 at the time, checkpoint on disk; now 0.750 |
 | 9 | Real predict, app view | **done** — 68 rows through the app, `explain.py` panels |
-| 7 | Side I recall | **next, and last** — the only lever left on the metric |
+| 7 | Side I recall | **done** — five blocks refuted, the median aggregate dropped, 0.750 |
 
-**Rail is shippable as it stands.** 0.740 is submitted rather than measured, the app renders it, and
-the remaining work is optional. What is *not* done and is not rail's to do: `src/submission/`
-(shared end-work — `validate.py` and the flat zip) and the demo video.
+**Rail is shipped.** 0.750 ± 0.114 per fold / 0.757 pooled is submitted rather than measured, the app
+renders it, and the phase list is closed. One thing to be precise about: **the app is Wayne's and is
+not on this branch** — `src/app/` here holds a `.gitkeep`. "Through the app" throughout this file means
+`src/app/services.py` read out of `origin/wayne` and driven against rail's real modules, which is the
+caller that matters; it is not something `jermaine-rail` can run on its own. What is *not* done and is not rail's to do:
+`src/submission/` (shared end-work — `validate.py` and the flat zip) and the demo video.
+
+**Do not reopen the feature search without reading Phase 7 first.** All five blocks it tested are
+refuted with the measurements to show it, and the shuffled control under **The noise floor** says what
+a sixth would have to beat.
 
 ### Why 8 and 9 ran before 7 — closed, and it paid for itself
 
 The plan originally ordered these 7 → 8 → 9 and was reordered to 8 → 9 → 7, on the argument that
 0.758 was measured but **not banked**: `predict.py` returned constant `Normal`, no checkpoint
-existed, and rail would have scored 0.33 if the deadline had arrived. Converting a measured number
+existed, and rail would have scored 0.31 if the deadline had arrived. Converting a measured number
 into a submitted one was worth ~+0.42 where Phase 7 is upside worth perhaps +0.05.
+
+*The reorder was right for a second reason nobody guessed: Phase 7 turned out to be worth **+0.010 and
+not provably even that**, and it changed no held-out prediction at all. Had it run first it would have
+spent the same day for the same nothing, with the 0.31 fallback still on disk underneath it.*
 
 **The reorder earned more than that.** Phase 9 turned up an integration bug that would have taken
 rail to **zero** in the app — `predict` took a folder path where `services.run_prediction` passes a
@@ -400,7 +511,7 @@ as the "no checkpoint found" path, so the app cannot crash during the demo.
 
 **Verified:** `outputs/predictions/rail_predictions.csv`, 68 rows, columns `file_id,prediction`
 matching `reference/submission_format/`, names `Test1.csv` … `Test68.csv` exactly as shipped and
-not zero-padded. 0.33 banked, technicality-zero impossible.
+not zero-padded. 0.31 banked, technicality-zero impossible.
 
 Note for later phases: `list_data_files` sorts lexicographically, so rows come back
 `Test1, Test10, Test11, …`. Harmless because `file_id` is per-row, but never assume numeric order.
@@ -438,23 +549,32 @@ noise. Zero edges return `0.0`, which callers read as "undefined" via `STATIONAR
 ### Phase 3 — Features — DONE
 
 Done 2026-09-18. Written: `features.py` — `extract(recording) -> np.ndarray` and `FEATURE_NAMES`,
-**342 features**, 0.09 s per recording.
+**342 features** (228 since Phase 7), 0.09 s per recording.
 
 **Verified:** 342 unique stable names, deterministic, finite on moving files. On the stationary
 files exactly the **126 wavelength features are NaN** — 7 bands × (3 aggregates × 2 sides + 3
-contrasts) × 2 channel types — with no infinities and no warnings. The design decision reproduces
-off the packaged code: log₁₀(I/II) at 50–150 Hz aggregated by max gives −0.003 / +0.361 / −0.455
-against the probe's +0.046 / +0.271 / −0.434, and by median −0.042 / −0.015 / −0.096 against
-−0.052 / −0.014 / −0.089. The within-side max/median spread reproduces **exactly**: 19.3 on the
-faulty side of a Side I file, 16.2 on the faulty side of a Side II file, ~12 healthy. Scoring is
-under **Measured baseline**.
+contrasts) × 2 channel types — with no infinities and no warnings.
+
+The design decision reproduces off the packaged code: log₁₀(I/II) at 50–150 Hz aggregated by max gives
+−0.003 / +0.361 / −0.455 against the probe's +0.046 / +0.271 / −0.434, and by median
+−0.042 / −0.015 / −0.096 against −0.052 / −0.014 / −0.089. The within-side max/median spread reproduces
+**exactly**: 19.3 on the faulty side of a Side I file, 16.2 on the faulty side of a Side II file, ~12
+healthy. Scoring is under **Measured baseline**.
+
+*Two figures in this section moved when Phase 7 dropped the median aggregate, re-measured 2026-09-19:
+the shipped set is **228 features**, and a stationary file now reads **84 NaN** — 7 × (2 × 2 + 2) × 2 —
+with `Train51` at 12, its single unresolvable band. Unchanged: the 19 per-box quantities, the NaN rule,
+and both decisions below. One consequence for anyone re-checking the numbers in the paragraph above —
+**the median rows no longer come off the packaged code**, since no median column is built; they have to
+be computed by hand from `features.quantities`, which is what produced them in the first place.*
 
 Two decisions the spec left open:
 
 - **Undefined wavelength bands are NaN, not zero.** A zero claims a measurement we do not have and
   takes the log contrast to −infinity, which `HistGradientBoosting` rejects outright; NaN rides
   through the aggregates and the log untouched and the model routes it natively. A linear baseline
-  in Phase 6 will need an imputer for those 126 columns.
+  in Phase 6 will need an imputer for those 126 columns — **84** since Phase 7 dropped the median
+  aggregate.
 - **Kurtosis is the Pearson form, not the excess form.** Every per-box quantity has to stay
   positive to survive the log in the cross-side contrast, and excess kurtosis goes negative.
 
@@ -467,9 +587,33 @@ avoid. The 0.30–0.50 m band is unresolvable below ~1.83 m/s, and exactly 3 tra
 
 `_band_energy` now returns NaN for an empty band, on the same argument as the stationary branch.
 The first estimate — "3 slow Normal files, impact nil" — was **wrong**: the fix cost 0.010 of macro
-F1, because an exactly-zero contrast was a marker no fault file could ever carry. See **The shipped
-figure**. Verified after the fix: those 3 files read NaN in all 64 boxes of that band and no file
-reads an exact zero, while files at 1.68–1.91 m/s still resolve it normally.
+F1, because an exactly-zero *band-energy* contrast was a marker no fault file could carry. See **The
+shipped figure**. Verified after the fix: those 3 files read NaN in all 64 boxes of that band, and
+files at 1.68–1.91 m/s still resolve it normally.
+
+**Corrected 2026-09-19, and the earlier wording of this paragraph was wrong.** It said "no file reads
+an exact zero", full stop. Measured across all 272 training files: **251 of them carry an exactly-zero
+contrast** — 219 Normal, 22 Side II, 10 Side I — in **432 cells, every one of them a
+`*_contrast_*_peak_hz` column**. The mechanism is not the defect above and is worth naming, so nobody
+goes hunting for a bug that is not there: `peak_hz` is the only quantity in the vector with a
+low-cardinality codomain. `max_peak_hz` is exactly an integer multiple of the 2.44 Hz Welch bin, so the
+two sides' loudest bin simply coincides — 225 of 544 cells — and `p90_peak_hz`, which interpolates and
+is not a bin multiple, still collides on 207 because the 32 per-side peak frequencies are heavily tied.
+225 + 207 accounts for all 432. **Among the 56 band-energy contrasts and the 16 rms / kurtosis / crest
+/ centroid contrasts there are no exact zeros at all**, on the 272 training files *and* on the 68 test
+files.
+
+Three limits on that, all of which matter more than the headline:
+
+- **The fix established it for the band energies only.** `_band_energy` is what changed; that the four
+  waveform and spectral scalars carry no zeros is incidental — those columns were never at risk.
+- **It is a measured property, not one the code enforces.** `NUMERICAL_FLOOR` is a second route to an
+  exactly-zero contrast that `_band_energy` does not guard: if both sides' energy fell to ≤ 1e-12,
+  `np.maximum(x, floor)` would clamp both and the contrast would read 0.0 — the same "both rails
+  measured the same thing" claim, arriving from the other side. Nowhere near live here: the smallest
+  per-side band energy in the cache is **5.3e-6**, some five million times the floor.
+- Keep the scope when quoting it. "No *band-energy* contrast is exactly zero" is true and
+  load-bearing; "no contrast is exactly zero" is false on 251 of 272 files.
 
 **Original spec:** pure, recording in, `np.ndarray` out. Welch with **`nperseg ≥ 4096`**, then:
 
@@ -489,13 +633,14 @@ Done 2026-09-18. Written: the extraction half of `train.py` — `extract_feature
 `training_features(refresh=False)`, and a `main()` that rebuilds the cache.
 
 **Verified:** `python -m src.rail.train` writes a 272×342 matrix to
-`outputs/models/rail/features_train.npz` in 80 s (790 KB with the `files` and `columns` vectors),
+`outputs/models/rail/features_train.npz` in 80 s (790 KB with the `files` and `columns` vectors;
+272×228 and 545 kB since Phase 7 — 496 kB of it the matrix — extracting in 155 s),
 and it reloads in **0.003 s**. Every cached file has a label. No subsampling path was built, per
 the spec. Logged in [[jermaine]] as the first rail artefact under `outputs/`.
 
 Three decisions the spec left open:
 
-- **Recordings are streamed, not collected.** All 272 held at once is ~2.7 GB against 744 KB of
+- **Recordings are streamed, not collected.** All 272 held at once is ~2.7 GB against 496 kB of
   features.
 - **The cache holds all 272 files, duplicates included.** Dropping `Train115`/`Train187` is a
   fitting decision, not an extraction one — see Phase 5. A pre-filtered artefact would be silently
@@ -576,10 +721,14 @@ third of the fit time, worth taking if Phase 7 iterates a lot (not changed yet; 
 CV loop ~3× faster and the accuracy is identical within ±0.008). And the search is closed: no more
 estimator tuning in Phase 8.
 
-**What this implies:** the cross-side contrast features are separable enough that a penalised linear
-model finds nearly all of it, and no amount of booster capacity adds to it. The score lives in the
-features, not the estimator — so Phase 7 is the only lever left on the metric, and the GBM is kept
-for the shipped model on the strength of handling NaN natively rather than on accuracy.
+**What this implies:** the features are separable enough that a penalised linear model finds nearly all
+of it, and no amount of booster capacity adds to it. The score lives in the features, not the estimator
+— so Phase 7 was the only lever left on the metric, and the GBM is kept for the shipped model on the
+strength of handling NaN natively rather than on accuracy.
+
+*Amended 2026-09-19: this paragraph used to say "the cross-side contrast features are separable
+enough". Phase 7 measured the contrast columns alone at 0.499, so the separability is not theirs alone
+— see **The core design decision**. The conclusion about the estimator is untouched.*
 
 **Caveat for the write-up: every row of both tables was measured ad hoc.** `build_linear_baseline`
 has no caller in the package and `train.py` runs one estimator only, so nothing here re-runs from a
@@ -587,50 +736,159 @@ command. That is a deliberate consequence of the search being closed — a perma
 would be dead code for a question nobody is reopening — but "model comparison/benchmarking" is a
 Problem Fit line item, so the numbers have to be quoted from here rather than demonstrated.
 
-### Phase 7 — Side I recall — NEXT, and the only phase left
+### Phase 7 — Side I recall — DONE
 
-**Write:** additions to `features.py`. Nothing else needs to change: `train.py` re-extracts, scores
-and refits from one command, and `predict.py` and `explain.py` pick up any new column automatically
-because both check `FEATURE_NAMES` rather than a fixed width.
+Done 2026-09-19. **Written: one constant and the lookup that reads it.** `config.AGGREGATES =
+("max", "p90")`, and `features.py` builds `_AGGREGATES` by looking each of those names up in a
+catalogue of the aggregates that exist — so the names and the values cannot disagree, and an
+uncatalogued name raises at import rather than mislabelling a column. That is the whole code change,
+and it takes the feature set from 342 columns to **228** by dropping every median aggregate.
 
-Still where the remaining score is, and the honest measurement puts **more** of it here than Phase 4
-thought. Normal is at 0.963 and Side II at 0.798; **Side I at 0.494** is 0.30 behind Side II, worth
-~0.10 of the metric, with 7.5 of its 14 files called Normal on an average repeat. Untried ideas,
-cheapest first:
+**All five candidate blocks are refuted** — four outright, and the fifth only ever looked like a win
+because of a confound inside it. The change that shipped came from the opposite direction: **taking
+columns away, not adding them.**
 
-1. **A finer order spectrum** — the baseline integrates over 7 coarse λ bands, which smears a
-   narrow corrugation peak. A proper order spectrum resampled onto a dense λ grid should isolate it.
-   `explain.py::_spectrum` already builds exactly this curve for the app, at ~250–360 points per
-   file; it is drawn but never featurised, so the cheapest version of this idea is to summarise that
-   curve rather than write anything new.
-2. **Harmonic structure at the passing frequency** — corrugation is periodic, so it should excite
-   harmonics of `v/λ`. The current band energies integrate across them rather than exploiting the
-   pattern.
-3. **Envelope spectrum** — standard practice for modulated rolling-contact faults.
-4. **Top-k boxes rather than the max alone** — max works, so the k next-largest may carry more.
+| | Shipped | Side I | Side II |
+|---|---|---|---|
+| before, 342 features | 0.740 ± 0.114 / 0.752 pooled | 0.494 | 0.798 |
+| **after, 228 features** | **0.750 ± 0.114 / 0.757 pooled** | **0.515** | 0.790 |
+| after, fast files only | 0.770 ± 0.103 / 0.777 pooled | 0.560 | 0.835 |
 
-#### Step 0, before touching `features.py` — capture the baseline's fold scores
+**All 68 held-out predictions are unchanged** — 60 Normal / 5 Side I / 3 Side II, file for file. The
+phase cost nothing and risked nothing in the submitted artefact; what it bought is a third fewer
+features for the same calls, and a great deal of evidence about what does *not* work.
 
-**Do this first or the paired test is impossible.** A paired comparison needs both feature sets
-scored on the same 50 folds, but only `mean` and `spread` reach the checkpoint — the fold array
-lives for the length of one run. Editing `features.py` and re-extracting overwrites the cache, and
-recovering the baseline then costs a revert plus a full 400 s cycle.
+#### What was tested, and what each one measured
 
-```python
-import numpy as np
-from src.rail import train
+**Count the population once, because three different numbers are all true of it and the write-up has to
+pick the right one: five candidate blocks, measured as eight specs** (H and F were each re-measured
+after a defect was fixed in them, and F once more with its per-side absolutes removed), **plus three
+narrowings below — eleven looks in total.** Every diff is against the shipped set re-measured at
+`max_iter=100` (a measured tie with 300, **Model comparison**), paired per fold on identical 50-fold
+splits, with the fast subset reported alongside.
 
-training = train.training_set()                  # no refresh: features.py is untouched
-baseline = train.cross_validate(training.matrix, training.labels)
-np.save(train.FEATURE_CACHE_PATH.with_name("baseline_folds.npy"), baseline.fold_scores)
-```
+| Block | full-set paired | fast-subset paired | Side I full / fast | verdict |
+|---|---|---|---|---|
+| **T** t statistic + AUC over all 64 boxes | −0.013 | −0.015 | −0.032 / −0.030 | refuted |
+| **L** within-side max/median, p90/median | −0.007 | −0.025 | −0.010 / −0.046 | refuted |
+| **E** envelope spectrum, λ bands | +0.020 22/9 | −0.005 17/20 | +0.021 / −0.030 | slow-file gain |
+| **H** harmonic structure at `v/λ` | +0.010 14/9 | −0.006 12/16 | +0.030 / −0.018 | slow-file gain |
+| **H** same, baseline edge-padded | +0.005 17/13 | −0.006 12/16 | +0.027 / −0.018 | refuted |
+| **F** fine λ contrast, first version | +0.025 28/12 | +0.033 26/12 | +0.031 / +0.029 | **confounded** |
+| **F** same, on a fixed λ grid | +0.005 22/13 | +0.015 22/15 | +0.001 / **−0.011** | refuted |
+| **F** same, contrast columns only | +0.004 21/14 | +0.011 20/15 | +0.010 / +0.006 | refuted |
+| *shuffled control, 36 junk columns* | *+0.012 18/10* | *−0.011 10/15* | *+0.027 / −0.008* | the zero point |
 
-~260 s off the existing cache. `outputs/` is gitignored, so this is a local scratch artefact and
-needs no log entry. Re-capture it whenever the shipped baseline changes.
+Three things to take from that table:
 
-#### How to run a candidate
+1. **E and H gained only where the slow Normal files are.** Both reverse on the fast subset. See
+   **The speed confound**.
+2. **F's first version was the empty-band bug rebuilt.** It summarised the contrast curve on Welch's
+   own bins, and the number of bins inside the wavelength window is proportional to speed — 20 bins at
+   walking pace, 384 at line speed. Its `share_above`/`run_above` columns were therefore exactly 0.0
+   on 8 files, all slow, all Normal: a value no fault file in that column can produce, which is
+   precisely the marker the plan paid 0.010 to remove in Phase 9. Resampling onto a fixed 64-point λ grid removed it — the
+   exact zeros moved to 1.88–18.6 m/s and onto Side I and Side II files, and the strongest column's
+   ability to tell slow from fast fell from 0.888 to 0.57 — and with the mechanism gone, **the gain
+   went with it**: +0.033 → +0.015 on the fast subset, with Side I reversing to −0.011.
+3. **The shuffled control is why none of the survivors are believable.** Same 36 columns, rows
+   permuted so they describe the wrong files, and it scored +0.012 on the full set — above six of the
+   eight specs measured, and above every one that survived its own confound check. Anything in the
+   ±0.01–0.03 range here is matrix width, not physics.
 
-Everything else needed exists; do not rebuild any of it.
+#### The change that shipped came from narrowing
+
+Once the control showed width buys score, the obvious test was the other direction. Three narrowings,
+same folds, same pairing:
+
+| Narrowed set | full-set paired | fast-subset paired | Side I full / fast |
+|---|---|---|---|
+| `only:contrast`, the 114 contrast columns alone | **−0.238** 2/48 | −0.242 1/49 | −0.366 0/10 / −0.273 0/10 |
+| **`drop:median`, the 228 max and p90 columns** | **+0.016** | **+0.022** | **+0.049 8/1 / +0.044 8/2** |
+| `only:vibration`, 171 columns | +0.006 | −0.031 15/24 | +0.007 / −0.065 1/8 |
+
+`only:contrast` collapsing to 0.499 is the important negative — it corrects a claim this plan made for
+two days, and it is written up under **The core design decision**.
+
+`drop:median` was then confirmed twice, because the best of eleven looks is optimistic by construction:
+
+| Run | full-set | Side I | fast-subset | Side I |
+|---|---|---|---|---|
+| screening, `max_iter=100`, seed 42, 50 folds | +0.0155 | +0.0487 8/1 | +0.0216 | +0.0435 8/2 |
+| confirmation, `max_iter=300`, seed 42, banked folds | +0.0095 | +0.0217 7/2 | +0.0164 | +0.0399 8/2 |
+| **replication, `max_iter=300`, seed 7, 100 fresh folds** | **+0.0072** | +0.0178 10/6 | **+0.0019** | +0.0097 10/6 |
+
+The replication is the one that counts: new folds, a new seed, both feature sets re-measured on them,
+and nothing about them chosen by any earlier decision. It halves the effect — the signature of
+regression to the mean after selection — and leaves **a tie on macro F1 with a consistently positive
+Side I**.
+
+**Why a tie shipped anyway**, stated plainly because the write-up has to defend it:
+
+- Twelve paired readings across three runs and two subsets, and **not one of them is negative**. The
+  worst case is that the two feature sets are equivalent.
+- It removes 114 of 342 columns. A narrowing cannot borrow the width effect the shuffled control
+  measured — it runs against it — so unlike every added block, this one is not explained by it.
+- It is what **The core design decision** said all along: max and p90 are the signal, median is
+  context. The measurement simply says the context was not earning its place.
+- The submitted CSV is byte-identical either way, so there is no artefact risk in the choice.
+
+It is *not* claimed as a score improvement, and the standing ±0.03 bar is not met. Anyone quoting
+0.750 against 0.740 should say "the same score with a third fewer features".
+
+#### The decision rule, fixed before the numbers were read
+
+**Eleven looks were taken** — eight candidate specs and three narrowings — so a nominal 95% interval on
+the best of them is worth about **57%** (0.95¹¹). The rule written down in advance: **the fast subset
+decides, not the full set**, a candidate ships only if its fast-subset difference clears a Holm-adjusted
+bar (≈ ±0.05 at eleven looks, against the ±0.03 single-comparison floor) *and* fast Side I improves, and
+confirming at `max_iter=300` against the banked folds does **not** correct the selection because it
+reuses the same 270 files and the same folds. Only the seed-7 replication is independent evidence.
+
+*The count was written as nine while the table held six spec rows. Eleven is the honest figure and it
+makes the bar **stricter**, so every verdict above stands unchanged — but quote eleven, not nine.*
+
+**No added block came near that bar.** The median drop did not either, and ships on the four grounds
+above rather than on the rule.
+
+#### Step 0 — the baseline's fold scores, re-captured
+
+`outputs/models/rail/baseline_folds.npz`, re-captured 2026-09-19 for the 228-feature set in 195 s; the
+342-feature capture it replaces read 0.740 / 0.752 / 0.963 · 0.494 · 0.798 and is gone.
+
+It exists because a paired comparison needs both feature sets scored on the same folds, but only
+`mean` and `spread` reach the checkpoint — the fold array lives for the length of one run, and the
+first `refresh=True` overwrites the cache it came from.
+
+| Key | Contents |
+|---|---|
+| `full_folds`, `fast_folds` | (50,) macro F1 per fold, on the 270 files and on the 138 fast ones |
+| `full_class_f1`, `fast_class_f1` | (10, 3) per-class F1, one row per repeat, in `labels` order |
+| `fingerprint`, `columns` | which feature set produced it — check these before trusting it |
+
+Verified on capture: full **0.750 ± 0.114** per fold / 0.757 pooled / 0.966 · 0.515 · 0.790, fast
+**0.770 ± 0.103** / 0.777 / 0.937 · 0.560 · 0.835 — `train.py`'s own figures to three decimals.
+
+`outputs/` is gitignored, so this is a local artefact on Jermaine's machine. **Re-capture it whenever
+the shipped feature set changes** — a stale baseline silently flatters or buries every candidate
+measured against it, and `columns` is how to tell.
+
+#### How to run a candidate, if the search is ever reopened
+
+Everything needed exists in the package; do not rebuild any of it. The harness that produced the tables
+above was **never committed** — it lived in the session scratchpad, outside the repo, and goes away with
+the session, deliberately: 300 lines for a question now answered, and [[project-structure]]'s file list
+has no room for it. It was four pieces, each an afternoon to rebuild: a candidate extractor writing one
+npz of every block at once (so a candidate costs a CV run, not a re-extraction — ~150 s for all 272
+files), a screener that hstacks a selected block onto the cached matrix and pairs the folds, a shuffled
+control, and a per-column confound check.
+
+**If you rebuild the screener, guard its cached reference from the first line, not after a review finds
+it.** The version written on the first day stored four fold arrays and nothing identifying them: the
+arrays are (50,) whatever produced them, so a stale reference would have been differenced against in
+silence and read plausibly. It was given a guard string — matrix shape, `FEATURE_FINGERPRINT`, seed,
+split and repeat counts, `FAST_SPEED_MS`, the dedup list — and the file that existed at the end carried
+both that and its 342 `columns`, which is the standard `baseline_folds.npz` already meets.
 
 ```python
 from src.rail import train
@@ -640,21 +898,55 @@ result.fold_scores        # (50,) -- difference THESE against the saved baseline
 result.macro_f1, result.pooled_macro_f1, result.class_f1.mean(axis=0)
 ```
 
-- **`refresh=True` is mandatory after editing `features.py`.** Forgetting it no longer silently
-  fits stale numbers — `config.FEATURE_FINGERPRINT` and the column names make the cache refuse — but
-  the error costs a run either way.
-- **Difference `fold_scores` per fold against the baseline's, then take the mean and 95% interval of
-  the differences.** Never compare two `mean ± sd` figures: the marginal spread is ±0.114 and the
-  paired test resolves ±0.03. Report the win/loss count beside it. See **The noise floor**.
-- The baseline to beat, same folds and seed: **0.740 ± 0.114 per fold, 0.752 pooled, Side I 0.494**.
-- One full cycle is ~400 s including re-extraction. If that becomes the bottleneck, set
-  `MODEL_MAX_ITER = 100` first — measured tie, ~3× faster (**Model comparison**).
-- Check the fast-files-only figure moved too, not just the headline. A gain that appears only on the
-  full set is a gain on slow Normal files, which is how the empty-band bug read as +0.010 for months.
+```python
+import numpy as np
+from scipy import stats
+from src.rail import features, train
 
-**Done when:** Side I F1 has moved materially, or the ideas are exhausted and the result recorded
-here. Parity with Side II would put macro F1 near 0.86. **Rail ships either way** — if a candidate
-does not clear the paired test, revert `features.py`, re-run `train` and `predict`, and stop.
+banked = np.load(train.FEATURE_CACHE_PATH.with_name("baseline_folds.npz"), allow_pickle=False)
+# Check the COLUMNS, not the fingerprint: AGGREGATES and the band edges are spelled
+# out in the names and deliberately absent from FEATURE_FINGERPRINT, so a fingerprint
+# check passes on a baseline from a different feature set. Which direction to assert
+# depends on which workflow you are in, and getting it backwards aborts the run with
+# a message that says the opposite of what happened:
+#
+#   editing features.py   -> the bank describes the PRE-EDIT set, which is the whole
+#                            point of it, so the columns must NOT match:
+#                            assert tuple(banked["columns"]) != features.FEATURE_NAMES
+#   hstacking a side matrix (features.py untouched, as the screener did)
+#                         -> the bank must describe today's set, so they MUST match:
+#                            assert tuple(banked["columns"]) == features.FEATURE_NAMES
+#
+# Right now the second holds: the bank was re-captured after Phase 7's edit.
+
+difference = result.fold_scores - banked["full_folds"]      # same folds, same seed, paired
+interval = stats.t.interval(0.95, len(difference) - 1, difference.mean(), stats.sem(difference))
+wins, losses = int((difference > 0).sum()), int((difference < 0).sum())
+```
+
+- **`refresh=True` is mandatory after editing `features.py`.** Forgetting it no longer silently
+  fits stale numbers — the **column names** make the cache refuse, and `FEATURE_FINGERPRINT` catches
+  the edits that change a value without changing a name, which a feature-set change is not — but
+  the error costs a run either way.
+- **Difference `fold_scores` per fold**, then take the mean and 95% interval of the differences. Never
+  compare two `mean ± sd` figures: the marginal spread is ±0.114 and the paired test resolves ±0.03.
+  Report the win/loss count beside it. See **The noise floor**.
+- **Price an added block against its own shuffled control**, and treat the fast subset as the decision.
+  Both lessons cost a full day to learn; neither is optional.
+- The baseline to beat, same folds and seed: **0.750 ± 0.114 per fold, 0.757 pooled, Side I 0.515**.
+- One full cycle is ~390 s including a 155 s re-extraction, or ~230 s off the cache.
+
+#### What is left, honestly
+
+- **Side I is still the weakest class by 0.28** (0.515 against Side II's 0.790), and 6.8 of its 14
+  files are still called Normal on an average repeat. The phase did not solve that; it established
+  that five plausible answers to it, across eight measured variants, do not solve it either.
+- **Idea 4 was only half-tested.** "Top-k boxes rather than the max alone" was tested as within-side
+  *ratios* (block L, refuted) rather than as a literal top-k aggregate. Given that removing an
+  aggregate helped and the width control penalises adding one, another aggregate is the least
+  promising thing left — but it is untested, and saying so is cheaper than implying otherwise.
+- The open question below — **why** Side I is milder than Side II — is still the thing that would
+  actually move it, and it is a question about the 14 files, not about the feature vector.
 
 ### Phase 8 — Train and tune against macro F1 — DONE
 
@@ -664,7 +956,8 @@ prints the whole report. Plus `config.CHECKPOINT_NAME` and `config.FAST_SPEED_MS
 
 **The honest number is 0.740 ± 0.114** at 10×5 on the 270 files that remain after the duplicates go,
 seed 42; fast-files-only 0.754 ± 0.116; the full table and the confusion matrix are under
-**Measured baseline**. Phase 8 first measured 0.750 here and Phase 9's empty-band fix took 0.010 off
+**Measured baseline**. *Phase 7 later took this to 0.750 / 0.770 on 228 features; everything else in
+this section — the harness, the five decisions, the artefacts — is unchanged.* Phase 8 first measured 0.750 here and Phase 9's empty-band fix took 0.010 off
 it — see **The speed confound** for why that subtraction is the good news it sounds like it is not.
 `python -m src.rail.train` runs the lot in ~400 s including an 80 s re-extraction, or ~260 s off
 the cache.
@@ -732,7 +1025,7 @@ Three decisions the spec left open, and one thing it got wrong:
   fed `list_data_files`; the app passes a list of staged upload paths, which would have raised on
   the first click. [[team-split]] documented `list[Path]` all along — this was rail not matching it.
 - **Rail keeps its constant-`Normal` fallback where SHM deliberately refuses one.** A label from a
-  three-way vocabulary is a real 0.33 baseline; SHM's would be a fabricated number. Both `main()`
+  three-way vocabulary is a real 0.31 baseline; SHM's would be a fabricated number. Both `main()`
   and the first explanation panel say out loud when it fires, so it cannot pass for a result.
 - **Two panel captions claimed more than the data supports and were rewritten.** They said
   concentrated per-car energy indicates a defect and that healthy rails track the centre line;
@@ -813,22 +1106,67 @@ separates Side I in the first place, a finer leaf has nothing to isolate it with
 this a **Phase 7 problem, not a hyperparameter one**, which is consistent with the model comparison
 finding the estimator irrelevant. Treat it as a hypothesis, not a result.
 
+### Five candidate answers to Side I — all refuted (Phase 7)
+
+Full tables, the confound found inside the first of them, and the shuffled control they all have to be
+read against are in **Phase 7**. In one line each, so none of them is re-attempted:
+
+- **Distributional side contrast** (a Welch t statistic and an AUC over all 64 boxes, in place of one
+  side's extreme against the other's): −0.013 full, −0.015 fast. The mildness of Side I's signature is
+  not what a rank statistic fixes.
+- **Within-side localisation ratios** (log max/median and p90/median per side): −0.007 full,
+  **−0.025 fast**, Side I −0.046. The plan's own 19.3-against-11 spread measurement is real; expressing
+  it as an explicit ratio is not what the booster was missing.
+- **Envelope spectrum** (Hilbert envelope, λ-band energies, per side and contrast): +0.020 full,
+  −0.005 fast. A slow-file gain.
+- **Harmonic structure** at 1×, 2×, 3× the passing frequency, scored against a median-filtered
+  baseline: +0.010 full, −0.006 fast, and +0.005 / −0.006 once the baseline was fixed. Also a slow-file
+  gain. The first implementation's baseline used a zero-padded median filter, which inflates the excess
+  by up to 0.5 dex over exactly the first ~20 bins — where every file's fundamental search starts, by an
+  amount speed decides. Edge-replicate the baseline if this is ever rebuilt; the fixed version was
+  measured and is the second row of Phase 7's table.
+- **Fine wavelength contrast**, the plan's own idea 1 and the only one that ever looked like a win:
+  +0.033 on the fast subset **until** the bin-count confound inside it was removed, then +0.015 with
+  Side I at −0.011. See Phase 7 for the mechanism; it is the empty-band defect in a new costume.
+
+### Keeping only the contrast columns — refuted, and it corrects the design note
+
+0.499 macro F1, Side I 0.114, losing 48 of 50 folds. The cross-side contrasts are where the
+discrimination lives but they are not self-sufficient: the model needs each side's absolute level to
+know what a given ratio means at that excitation. Written up under **The core design decision**.
+
+### Vibration alone — refuted
+
+Dropping the 171 shock columns: +0.006 full, **−0.031 fast**, Side I −0.065, losing 24 folds to 15 and
+8 repeats to 1. Shock earns its half of the feature vector on the honest subset.
+
 ## Open questions
 
 - **Why Side I is weaker than Side II.** Unknown — physical (curve direction, attack angle on the
-  inner rail, which §1.1 of the info kit does discuss) or an artefact of these 14 files. Resolving
-  it would likely resolve Phase 7.
+  inner rail, which §1.1 of the info kit does discuss) or an artefact of these 14 files. Phase 7 makes
+  this sharper rather than answering it: five independent views of the asymmetry all failed to
+  separate the class, which is what you would expect if the 14 files are simply mild rather than if the
+  feature vector were looking in the wrong place. **This is the question that would move the metric**,
+  and it is a question about those files, not about `features.py`.
+- **Why the contrast columns cannot stand alone.** The 114 of them score 0.499 without the per-side
+  absolutes. The working explanation — a given log-ratio means different things at different excitation
+  levels, and only the absolutes carry the level — is a hypothesis, not a measurement.
 - **Whether the held-out test set shares the speed distribution.** If it was drawn from the same
   pool the confound is harmless. Unknowable before the deadline — which is the reason to quote the
   fast-files-only figure rather than rely on the shortcut.
 
 ## Standing constraints
 
-- **No improvement under ±0.04 is real.** See **The noise floor**. 10×5 CV on fixed folds, or the
-  Phase 7 work will chase noise.
-- Nothing in Phases 0–9 touches `common/`, so no [[jermaine]] log entry is needed unless that
-  changes.
-- The floor is banked at 0.33 in Phase 0 and the fitted model measures **0.740**, submitted through
-  the app. Phase 7 is upside, not a dependency — rail can be left exactly as it is.
+- **No improvement under ±0.03 paired is real**, and for a change that *adds* columns the bar is its
+  own shuffled control, which measured **+0.012 macro and +0.027 Side I on 36 columns of noise**. See
+  **The noise floor**. 10×5 CV on fixed folds, differenced per fold, or the work will chase noise.
+- **The fast-files-only subset decides, not the headline** — and it is necessary, not sufficient. Two of
+  five Phase 7 candidates gained on the full 270 and reversed on the 138 fast files; a third carried a
+  speed marker that the subset check waved through and only a per-column inspection caught. A gain that
+  lives where the slow Normal files are is the speed confound wearing a feature's name.
+- Nothing in Phases 0–9 touches `common/`. Phase 7 changed the shipped feature set, which invalidates
+  the cached matrix and the checkpoint under `outputs/` — logged in [[jermaine]] for that reason alone.
+- The floor is banked at 0.31 in Phase 0 and the fitted model measures **0.750 ± 0.114 per fold, 0.757
+  pooled**, submitted through the app. **Every phase is closed; rail is done.**
 
 See also: [[team-split]], [[project-structure]], [[problem-statment]], [[jermaine]].

@@ -44,11 +44,11 @@ but never assume numeric order.
    and ACV's rank-decay; macro-F1 and MAPE are near one-liners). **Still missing** — rail scored
    itself with `sklearn.metrics.f1_score(average="macro")` directly rather than wait.
 
-## Where each subsystem stands — 2026-09-18
+## Where each subsystem stands — rail 2026-09-19, the rest 2026-09-18
 
 | | State |
 |---|---|
-| **rail** (Jermaine) | **shipped.** 0.740 ± 0.114 macro F1 (0.752 pooled), checkpoint on disk, 68 held-out rows produced through the app, `explain.py` drawing three panels. Only optional feature work left ([[rail-plan]] Phase 7). |
+| **rail** (Jermaine) | **done.** 0.750 ± 0.114 macro F1 (0.757 pooled), checkpoint on disk, 68 held-out rows produced through the app, `explain.py` drawing three panels. All ten phases closed — Phase 7 refuted all five candidate feature blocks and shipped a narrowing, 342 → 228 columns ([[rail-plan]]). Nothing optional left. |
 | **shm** (Wayne) | model via rainflow + Miner's rule, LOO MAPE 2.5%, with explainability panels — on his branch. |
 | **app** (Wayne) | shell, routing, theme, `services.py`, generic panel renderer — on his branch, not yet merged to `main`. |
 | **door, acv** (Jou) | not started. `common/metrics.py` not started. |
@@ -92,11 +92,18 @@ schema, correct `file_id` spelling:
 |---|---|---|
 | ACV | `01\|02\|03\|04\|05\|06\|07\|08` | ~0.56 — random ranking averages `(n−(r−1))/n` = 0.5625 |
 | Door | gap-split segments, all `Normal` | ~0.4 — segmentation is exact, so only the 30/110 abnormals are lost |
-| Rail | constant `Normal` | 0.33 — macro-F1 of (1.0 + 0 + 0)/3 |
+| Rail | constant `Normal` | **0.308** — macro-F1 of (0.924 + 0 + 0)/3, measured |
 | SHM | constant `0.23` (the training mean) | ~0 — MAPE floors it |
 
 ≈ **0.32 Overall for about 90 minutes of work**, and it makes a technicality-zero impossible.
 Everything after is improvement on a banked position.
+
+**Rail's row said 0.33 until 2026-09-19, from `(1.0 + 0 + 0)/3`. The majority class does not score 1.0
+when you predict it everywhere** — perfect recall, but precision is only its own share of the data, so
+its F1 is `2p/(p+1)`: 0.924 at rail's p = 232/270, giving a floor of **0.308**. The general form for a
+constant prediction over k classes is therefore `2p/(p+1)/k`, and 1/k is an unreachable limit. Door's
+~0.4 already allows for this (0.842/2 = 0.421 at p = 80/110); the Overall ≈ 0.32 is unchanged, since
+the correction is worth 0.006 of it.
 
 ## What gets cut
 
@@ -177,10 +184,11 @@ its CSV passes `validate.py`. Not the notebook — the app. That is what the ear
    submitted CSV.
 2. ~~**Jermaine never blocks on the full rail run.**~~ **Obsolete** — measured at 0.205 s/file, so
    all 272 extract in 80 s. No subsampling path was ever needed. The worry was 5.6 GB on disk; the
-   cost that matters is 790 KB of features.
+   cost that matters is 545 kB of features.
 
 ~~If rail extraction is still fighting back with a third of the time left, drop it to a simple
-per-side RMS/band-energy model and take the ~0.5.~~ Moot: rail is shipped at 0.740.
+per-side RMS/band-energy model and take the ~0.5.~~ Moot: rail is shipped at 0.750 (0.757 pooled) and
+every phase is closed.
 
 ## Verified data facts
 

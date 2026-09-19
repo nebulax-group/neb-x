@@ -24,6 +24,45 @@ serial loop; start extraction first and never block on the full run. See [[team-
 **Affects:** who has to do something differently, or "nobody".
 ```
 
+### 2026-09-19 — rail's feature set is 228 columns, not 342; every rail artefact under `outputs/` is stale
+
+**What:** Phase 7 dropped the median aggregate. `src/rail/config.py` gained `AGGREGATES`, `features.py`
+builds `_AGGREGATES` from it, and `FEATURE_NAMES` went from 342 names to **228**. `features_train.npz`,
+`classifier.pkl` and `baseline_folds.npz` were all rebuilt; anything cached before today refuses to
+load rather than predicting through mismatched columns.
+**Why:** [[rail-plan]] Phase 7. Four added-feature ideas were refuted and the median columns turned out
+to be a tie the model was carrying for nothing — 0.740 → 0.750 per fold, 0.757 pooled, Side I 0.494 →
+0.515, and all 68 held-out predictions byte-identical.
+**Affects:** **nobody** in code — `predict(inputs) -> DataFrame` and the `explain` panels are unchanged,
+both re-verified against Wayne's real `src/app/services.py` (30 checks, including the staged-upload
+path). If you have a rail `outputs/` from yesterday, `python -m src.rail.train --refresh` rebuilds it in
+~390 s. Nothing in `common/` touched.
+
+Three things worth borrowing, **Jou and Wayne**, all of which cost rail a day to learn:
+
+1. **Adding columns buys score on its own.** 36 candidate columns with their *rows shuffled* — so they
+   describe the wrong files — scored **+0.012 macro F1 and +0.027 on the rare class**, above five of the
+   seven candidates tested that day and above every one that survived its own confound check. At 270
+   files with 14 in the minority class, matrix width moves fold-level variance. **Price any new feature
+   block against its own shuffled control, not against zero.** Door's 110 segments and SHM's 64 labels
+   are in the same regime or worse.
+2. **A gain on the full set that vanishes on the honest subset is the confound, not a gain.** Two of
+   five candidates did exactly that, and a third hid a speed marker that the subset check waved through
+   — so score the honest subset every run *and* read your new columns directly. Whatever your
+   subsystem's equivalent of "slow ⇒ Normal" is — a file-length cue, a sensor only present in healthy
+   cases — check what each column can tell about it, not just what the model scores.
+3. **Best-of-N needs a replication on fresh folds.** Rail's winner read +0.022 when screened, +0.016
+   confirmed on the same folds at the shipped settings, and **+0.002 on a new seed** with both sides
+   re-measured. The first two numbers are the same measurement twice; only the third is evidence.
+
+**Correcting a figure my earlier entries below both get wrong: rail's constant-`Normal` floor is 0.308,
+not 0.33.** It was computed as `(1.0 + 0 + 0)/3`, and the majority class does **not** score F1 1.0 when
+you predict it everywhere — recall is perfect but precision is only its share of the data, so its F1 is
+`2p/(p+1)` = 0.924 at rail's 232/270. **Check your own floor the same way, Jou and Wayne**: the general
+form for a constant prediction over k classes is `2p/(p+1)/k`, and 1/k is a limit you cannot reach.
+Door's ~0.4 in [[team-split]] is already correct (0.842/2 = 0.421 at 80/110), and the banked Overall is
+0.3229, so nothing downstream moves — but the two entries below say 0.33 and it is 0.308.
+
 ### 2026-09-18 — rail ships: `predict` now takes `list[Path]`, and `explain.py` exists
 
 **What:** `src.rail.predict.predict` takes `list[Path]` and returns the 68 real rows from the fitted
