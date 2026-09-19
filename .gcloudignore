@@ -1,0 +1,15 @@
+# gcloud defaults to .gitignore, which excludes outputs/ -- but outputs/models/ is the
+# only reason the deployed app can predict. List what the build does NOT need instead.
+.git/
+.venv/
+data/
+outputs/predictions/
+outputs/plots/
+outputs/logs/
+outputs/explore/
+video/
+tests/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
